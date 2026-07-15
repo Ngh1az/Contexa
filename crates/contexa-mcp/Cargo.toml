@@ -1,0 +1,12 @@
+[package]
+name = "contexa-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+contexa-context = { path = "../contexa-context" }
+contexa-memory = { path = "../contexa-memory" }

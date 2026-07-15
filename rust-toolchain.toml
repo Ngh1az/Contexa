@@ -1,0 +1,4 @@
+[toolchain]
+channel = "stable"
+# MSRV is 1.75.0 (docs/19_Coding_Standards.md §4.1); this pins CI/dev to the
+# latest stable toolchain, which must stay >= MSRV.

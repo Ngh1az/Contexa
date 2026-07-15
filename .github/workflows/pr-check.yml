@@ -1,0 +1,24 @@
+name: PR Check
+on: [pull_request]
+
+jobs:
+  rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo build --workspace --release
+
+  frontend:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install
+      # ESLint/Vitest are not configured yet (apps/desktop/package.json has no
+      # lint/test scripts) — typecheck is the only frontend check until those
+      # land as real work, not scaffolding.
+      - run: pnpm -C apps/desktop typecheck

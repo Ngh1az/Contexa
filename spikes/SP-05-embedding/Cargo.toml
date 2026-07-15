@@ -1,0 +1,12 @@
+[package]
+name = "sp05-embedding"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fastembed = "5"
+anyhow = "1"
+memory-stats = "1"
+
+[profile.release]
+opt-level = 3

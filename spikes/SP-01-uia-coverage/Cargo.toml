@@ -1,0 +1,13 @@
+[package]
+name = "sp01-uia-coverage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+uiautomation = "0.25"
+sysinfo = "0.33"
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
+[profile.release]
+opt-level = 2

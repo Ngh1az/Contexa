@@ -1,0 +1,38 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "apps/desktop/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+# MSRV 1.75.0 — see docs/19_Coding_Standards.md §4.1
+rust-version = "1.75.0"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+unwrap_used = "warn"
+expect_used = "warn"
+
+# Versions validated in Phase 0.5 spikes (see benchmarks/BASELINE.md) and
+# docs/02_System_Architecture.md §14.1. Member crates depend on these via
+# `<crate>.workspace = true` and declare their own feature sets.
+[workspace.dependencies]
+windows = "0.62"
+uiautomation = "0.25"
+tokio = "1"
+rusqlite = { version = "0.33", features = ["bundled", "load_extension"] }
+refinery = "0.8"
+rmcp = "1"
+reqwest = "0.12"
+fastembed = "5"
+tracing = "0.1"
+crossbeam-channel = "0.5"
+keyring = "3"
+whatlang = "0.16"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"

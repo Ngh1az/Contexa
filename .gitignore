@@ -1,0 +1,32 @@
+# Rust
+target/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Databases
+*.db
+*.db-journal
+*.db-wal
+*.sqlite3
+
+# Model / tool caches (regenerated on demand — see spikes/SP-05, docs/22)
+.fastembed_cache/
+
+# Env
+.env
+.env*.local
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local reference clones — not part of the shipped repo, contain nested .git
+# dirs of their own (docs/26_Reference_Repos.md)
+reference-repos/
