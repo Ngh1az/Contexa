@@ -1,10 +1,57 @@
+<div align="center">
+
 # Contexa
+
+**The Context Infrastructure for AI**
+
+![Rust](https://img.shields.io/badge/Rust-2021_edition-000000?logo=rust&logoColor=white)
+![Tauri](https://img.shields.io/badge/Tauri-2.x-24C8DB?logo=tauri&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D6?logo=windows&logoColor=white)
+![Status](https://img.shields.io/badge/Phase-0.5_spikes_passed-brightgreen)
+![License](https://img.shields.io/badge/License-Proprietary-lightgrey)
+
+</div>
 
 **AI Context Platform** — nền tảng ngữ cảnh & bộ nhớ AI, chạy local-first trên Windows (Tauri + Rust), chuẩn MCP-native.
 
 Contexa liên tục xây dựng ngữ cảnh có cấu trúc từ hoạt động desktop (cửa sổ đang mở, nội dung đang xem/soạn...), giúp bất kỳ AI nào cũng hiểu được bạn đang làm gì — không phải chatbot, không phải công cụ OCR, mà là **lớp ngữ cảnh** nằm dưới AI.
 
 > Trạng thái hiện tại: đã qua Phase 0.5 (spike kỹ thuật) và Phase 0 (scaffolding workspace). Đang chuẩn bị vào Phase 1 (Vision/Context/Database Engine) — xem [docs/14_Development_Roadmap.md](docs/14_Development_Roadmap.md).
+
+---
+
+## Kiến trúc pipeline
+
+```mermaid
+flowchart LR
+    OS[Windows OS] --> VE[Vision Engine]
+    VE -->|UIA / OCR| CE[Context Engine]
+    CE -->|Snapshot| ME[Memory Engine]
+    ME <--> DB[(SQLite + sqlite-vec)]
+    CE --> AO[AI Orchestrator]
+    ME --> AO
+    AO --> PB[Prompt Builder]
+    PB --> LLM[LLM Provider]
+    AO <--> MCP[MCP Runtime]
+    Overlay[Overlay UI] <-->|IPC| AO
+```
+
+Chi tiết đầy đủ: [docs/02_System_Architecture.md](docs/02_System_Architecture.md).
+
+---
+
+## Đã validate (Phase 0.5 spikes)
+
+Trước khi viết engine thật, các giả định rủi ro nhất đã được đo bằng benchmark thực tế — xem đầy đủ tại [benchmarks/BASELINE.md](benchmarks/BASELINE.md).
+
+| Chỉ số | Mục tiêu | Đo được | |
+|---|---|---|---|
+| Semantic search (50K × 384-dim) p95 | < 200 ms | **57 ms** | ✅ |
+| Overlay mở (Alt+Space) p95 | < 200 ms | **9 ms** | ✅ |
+| CPU capture lúc tương tác (10 fps) | < 5% | **0.14%** | ✅ |
+| UIA coverage (app phổ biến) | ≥ 8/10 | 6/7 đo được, 86% | ⚠️ pass có ghi chú |
+| COM threading (3 pattern × 1000 cycle) | 0 lỗi | **0 lỗi** | ✅ |
 
 ---
 
