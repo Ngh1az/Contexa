@@ -1,8 +1,5 @@
 <div align="center">
-
-# Contexa
-
-**The Context Infrastructure for AI**
+  <img src="docs/assets/banner.png" alt="Contexa — The Context Infrastructure for AI" width="100%">
 
 ![Rust](https://img.shields.io/badge/Rust-2021_edition-000000?logo=rust&logoColor=white)
 ![Tauri](https://img.shields.io/badge/Tauri-2.x-24C8DB?logo=tauri&logoColor=white)
