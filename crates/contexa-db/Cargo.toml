@@ -9,3 +9,15 @@ workspace = true
 
 [dependencies]
 contexa-core = { path = "../contexa-core" }
+rusqlite = { workspace = true }
+refinery = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync"] }
+chrono = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

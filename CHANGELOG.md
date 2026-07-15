@@ -2,6 +2,28 @@
 
 All notable documentation changes for Contexa.
 
+## [1.3.11] — 2026-07-15
+
+### Added — Phase 1: Vision Engine (`contexa-vision`)
+- Pure-logic modules (real `cargo test` coverage, 23 tests): `ExclusionFilter`, perceptual hash/hamming (ported from `spikes/SP-02-capture-cpu`), `FrameDifferencer`, `RegionHashCache`, `AdaptiveScheduler` (Idle/Active/Interactive state machine, `Instant`-driven for testability)
+- WinAPI/COM/GPU modules (verified via `examples/vision_smoke.rs` against a real window, not `cargo test`): `WindowMonitor` (`GetForegroundWindow`/`GetWindowTextW`/`QueryFullProcessImageNameW`), `UiaExtractor` (`walk()`/`confidence()` ported from `spikes/SP-01-uia-coverage`), `FrameCapturer` (WGC `Capturer` ported from `spikes/SP-02-capture-cpu`)
+- `VisionEngine` trait + `ContexaVisionEngine`: dedicated STA capture thread per ADR-0008 Pattern A, bounded result channel (docs/05 §9), one-shot `capture_active_window`/`extract_uia_text` via short-lived per-call COM threads
+- `OcrEngine` is an explicit stub (`ocr_region` always errors) — `SP-03-ocr-fallback` was never run; implementing real OCR now would skip the project's spike-first gate
+- `contexa_core::CaptureMethod` reused for `VisionResult` (as `Option<CaptureMethod>`) instead of a second, conflicting enum
+- Verified live: WGC capture succeeded against a real foreground window (frame hash produced); UIA extraction correctly failed against an Electron-based app, consistent with known UIA limitations from SP-01
+- `docs/14_Development_Roadmap.md` — Vision Engine marked done (except OCR)
+
+## [1.3.10] — 2026-07-15
+
+### Added — Phase 1: Database Layer (`contexa-db`)
+- `contexa-core`: `ContexaError`/`Result` (docs/19 §4.5) and `ContextSnapshot`/`CaptureMethod` shared types (docs/02 §8.1)
+- `crates/contexa-db/migrations/V1__initial_schema.sql` — all v1.0 tables from docs/04 §5.1–5.9 (v1.1 tables deferred per §5.10)
+- `Database` (WAL, sqlite-vec extension loading via the vendored `vec0.dll`, single writer + 4-connection read pool, refinery migration runner)
+- `ContextRepository`, `MemoryRepository`, `TimelineRepository` (docs/04 §8.1) with rusqlite-backed implementations, incl. KNN semantic search (validated pattern from `spikes/SP-04-sqlite-vec`) and retention purge (docs/04 §7.4)
+- 3 integration tests (`crates/contexa-db/tests/database.rs`) against the real vendored sqlite-vec extension — all pass
+- Workspace deps: `async-trait`, `tempfile` (dev)
+- `docs/14_Development_Roadmap.md` — Database Layer marked done
+
 ## [1.3.9] — 2026-07-15
 
 ### Added — Phase 0 scaffolding (unblocked by passed 0.5 gate spikes)
