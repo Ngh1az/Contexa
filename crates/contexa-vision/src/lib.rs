@@ -20,5 +20,5 @@ pub use ocr::OcrEngine;
 pub use region_hash::RegionHashCache;
 pub use scheduler::{AdaptiveScheduler, CaptureState};
 pub use types::{Frame, OcrResult, Region, UiaResult, VisionResult, WindowInfo};
-pub use uia::UiaExtractor;
+pub use uia::{with_sta_com, UiaExtractor};
 pub use window_monitor::WindowMonitor;

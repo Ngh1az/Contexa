@@ -99,6 +99,8 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 | Selection tracker         | Should   | 2d       |
 | Language detector         | Should   | 1d       |
 
+**Status:** Done except Selection Tracker — `crates/contexa-context` (`SnapshotAssembler`, `ContextCache`, `ChangeDetector`, `PluginRegistry`/`PluginSandbox`, Chrome/Edge enricher via targeted UIA address-bar lookup, VS Code enricher via window-title parsing — see its module doc for why, not live UIA — Language Detector via `whatlang`, and `ContexaContextEngine` wiring it all together with a `tokio::sync::broadcast` `subscribe()`). Selection Tracker is an explicit stub (`get_selection()` always returns `None`) — deferred, not required by M1. 40 unit tests pass; live UIA-dependent paths (Chrome/Edge/VS Code enrichment) verified via `examples/context_smoke.rs` — mirrors the caveat already on Vision Engine's own smoke example: this needs a real interactive desktop session (an automated/headless shell run showed `UIA: no result` on both `vision_smoke` and `context_smoke` alike, i.e. a session limitation, not a regression), so re-run it manually with Chrome and VS Code focused to confirm `url`/`document_path` before relying on this in production.
+
 ### 5.3 Database Layer
 
 | Task                                | Priority | Duration |

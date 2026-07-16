@@ -10,3 +10,11 @@ workspace = true
 [dependencies]
 contexa-core = { path = "../contexa-core" }
 contexa-vision = { path = "../contexa-vision" }
+tokio = { workspace = true, features = ["sync"] }
+chrono = { workspace = true }
+uuid = { workspace = true }
+whatlang = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

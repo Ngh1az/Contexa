@@ -14,6 +14,7 @@ use uiautomation::patterns::{UITextPattern, UIValuePattern};
 use uiautomation::types::Handle;
 use uiautomation::{UIAutomation, UIElement};
 use windows::Win32::Foundation::HWND;
+use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED};
 
 use contexa_core::{ContexaError, Result};
 
@@ -23,6 +24,27 @@ const MAX_DEPTH: usize = 20;
 const MAX_ELEMENTS: usize = 2000;
 // mirrors production's context char budget — early-stop once filled.
 const ENOUGH_CHARS: usize = 2000;
+// address-bar-style lookups are shallow; bail out well before the general walk's budget.
+const FIND_MAX_DEPTH: usize = 12;
+const FIND_MAX_ELEMENTS: usize = 500;
+
+/// Runs `f` on the current thread with COM initialized STA (ADR-0008 — UIA
+/// requires it), uninitializing afterward. For one-shot callers (e.g.
+/// enrichers) that don't already run on a COM-initialized thread.
+///
+/// # Errors
+/// Returns an error if `CoInitializeEx` fails (e.g. the thread already has
+/// an incompatible COM apartment).
+pub fn with_sta_com<R>(f: impl FnOnce() -> R) -> Result<R> {
+    unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) }
+        .ok()
+        .map_err(|e| ContexaError::CaptureFailed {
+            reason: e.to_string(),
+        })?;
+    let result = f();
+    unsafe { CoUninitialize() };
+    Ok(result)
+}
 
 pub struct UiaExtractor {
     automation: UIAutomation,
@@ -73,6 +95,60 @@ impl UiaExtractor {
             duration_ms,
         })
     }
+
+    /// Finds the first element with the given `AutomationId` (e.g. Chrome's
+    /// address bar, `"addressEditBox"`) and returns its value/name. Used by
+    /// enrichers that need one targeted element rather than a full-tree
+    /// harvest — see `docs/06_Context_Engine.md` §5.2.
+    #[must_use]
+    pub fn find_by_automation_id(&self, hwnd: isize, automation_id: &str) -> Option<String> {
+        let win = self
+            .automation
+            .element_from_handle(Handle::from(HWND(hwnd as *mut std::ffi::c_void)))
+            .ok()?;
+        let mut seen = 0usize;
+        find_by_id(&self.automation, &win, automation_id, 0, &mut seen)
+    }
+}
+
+fn find_by_id(
+    auto: &UIAutomation,
+    el: &UIElement,
+    automation_id: &str,
+    depth: usize,
+    seen: &mut usize,
+) -> Option<String> {
+    if depth > FIND_MAX_DEPTH || *seen > FIND_MAX_ELEMENTS {
+        return None;
+    }
+    *seen += 1;
+
+    if el.get_automation_id().ok().as_deref() == Some(automation_id) {
+        if let Ok(vp) = el.get_pattern::<UIValuePattern>() {
+            if let Ok(v) = vp.get_value() {
+                if !v.is_empty() {
+                    return Some(v);
+                }
+            }
+        }
+        return el.get_name().ok().filter(|n| !n.is_empty());
+    }
+
+    let walker = auto.create_tree_walker().ok()?;
+    let mut child = walker.get_first_child(el).ok()?;
+    loop {
+        if let Some(found) = find_by_id(auto, &child, automation_id, depth + 1, seen) {
+            return Some(found);
+        }
+        match walker.get_next_sibling(&child) {
+            Ok(next) => child = next,
+            Err(_) => break,
+        }
+        if *seen > FIND_MAX_ELEMENTS {
+            break;
+        }
+    }
+    None
 }
 
 #[allow(clippy::too_many_arguments)]
