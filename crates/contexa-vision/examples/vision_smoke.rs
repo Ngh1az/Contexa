@@ -9,7 +9,7 @@
 //! live foreground window and display session that an automated test run
 //! can't guarantee, so it's a manual example rather than a `#[test]`.
 
-use contexa_vision::{ContexaVisionEngine, VisionEngine};
+use contexa_vision::{clipboard, with_sta_com, ContexaVisionEngine, UiaExtractor, VisionEngine};
 
 fn main() {
     let (engine, _rx) = ContexaVisionEngine::new(Vec::new());
@@ -56,11 +56,31 @@ fn main() {
         width: 100,
         height: 100,
     }) {
-        Ok(_) => {
-            println!(
-                "ocr_region: unexpectedly succeeded (SP-03 was supposed to be a prerequisite)"
-            );
+        Ok(result) => println!(
+            "ocr_region: {} chars, confidence {:.2}, {} ms",
+            result.text.len(),
+            result.confidence,
+            result.duration_ms
+        ),
+        Err(e) => eprintln!("ocr_region failed: {e}"),
+    }
+
+    let uia_selection = with_sta_com(|| {
+        UiaExtractor::new()
+            .ok()
+            .and_then(|extractor| extractor.get_selected_text())
+    });
+    match uia_selection {
+        Ok(Some(text)) => println!("uia selection: {text:?}"),
+        Ok(None) => println!("uia selection: none (nothing selected, or focused element has no TextPattern)"),
+        Err(e) => eprintln!("uia selection failed: {e}"),
+    }
+
+    match clipboard::read_text() {
+        Some(text) => {
+            let sample: String = text.chars().take(100).collect();
+            println!("clipboard text: {sample:?}");
         }
-        Err(e) => println!("ocr_region: {e} (expected — see docs/22)"),
+        None => println!("clipboard: empty or non-text"),
     }
 }

@@ -9,11 +9,12 @@
 //! foreground window and display session that an automated test run can't
 //! guarantee. Captures one `VisionResult` from whatever window has focus,
 //! runs it through the full Context Engine pipeline (assembler -> built-in
-//! enrichers -> language detector -> change detector -> cache), and prints
-//! the resulting `ContextSnapshot`. Focus Chrome/Edge to see `url`
-//! populated, or VS Code on a git repo to see `document_path` + workspace
-//! metadata (see `enrichers::vscode` doc comment for why there's no git
-//! branch yet).
+//! enrichers -> selection tracker -> language detector -> change detector ->
+//! cache), and prints the resulting `ContextSnapshot`. Focus Chrome/Edge to
+//! see `url` populated, or VS Code on a git repo to see `document_path` +
+//! workspace metadata (see `enrichers::vscode` doc comment for why there's
+//! no git branch yet). Select some text (or copy something) before running
+//! to see `selected_text` populated.
 
 use contexa_context::{ContexaContextEngine, ContextEngine};
 use contexa_core::ContextSnapshot;
@@ -22,6 +23,7 @@ use contexa_vision::{ContexaVisionEngine, VisionEngine};
 fn main() {
     let (vision, _rx) = ContexaVisionEngine::new(Vec::new());
     let context = ContexaContextEngine::with_builtin_enrichers();
+    context.enable_selection_tracking();
 
     let result = match vision.capture_active_window() {
         Ok(result) => result,
@@ -49,6 +51,7 @@ fn print_snapshot(snapshot: &ContextSnapshot) {
     println!("process_name: {}", snapshot.process_name);
     println!("url: {:?}", snapshot.url);
     println!("document_path: {:?}", snapshot.document_path);
+    println!("selected_text: {:?}", snapshot.selected_text);
     println!("language: {:?}", snapshot.language);
     println!("capture_method: {:?}", snapshot.capture_method);
     println!("metadata: {:?}", snapshot.metadata);

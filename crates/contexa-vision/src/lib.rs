@@ -1,5 +1,7 @@
 //! Vision Engine — capture, UIA, OCR — see `docs/05_Vision_Engine.md`
 
+pub mod clipboard;
+
 mod capture;
 mod differencer;
 mod engine;

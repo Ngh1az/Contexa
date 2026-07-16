@@ -156,7 +156,29 @@ impl VisionEngine for ContexaVisionEngine {
 
     fn ocr_region(&self, region: &Region) -> Result<OcrResult> {
         let (_window, frame) = capture_active_frame()?;
-        OcrEngine::new().ocr_region(&frame, region)
+        let region = *region;
+        // Windows.Media.Ocr is a WinRT/COM API; capture's one-shot thread
+        // already uninitialized COM by the time we're back here, so OCR
+        // gets its own one-shot COM context (same pattern as `extract_uia_text`).
+        std::thread::Builder::new()
+            .name("contexa-ocr-oneshot".to_string())
+            .spawn(move || -> Result<OcrResult> {
+                unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }
+                    .ok()
+                    .map_err(|e| ContexaError::CaptureFailed {
+                        reason: e.to_string(),
+                    })?;
+                let result = OcrEngine::new().ocr_region(&frame, &region);
+                unsafe { CoUninitialize() };
+                result
+            })
+            .map_err(|e| ContexaError::CaptureFailed {
+                reason: e.to_string(),
+            })?
+            .join()
+            .map_err(|_| ContexaError::CaptureFailed {
+                reason: "ocr thread panicked".to_string(),
+            })?
     }
 
     fn get_window_info(&self) -> Result<WindowInfo> {

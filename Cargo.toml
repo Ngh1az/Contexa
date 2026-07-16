@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = ["crates/*", "apps/desktop/src-tauri"]
+# Spikes are standalone crates with their own Cargo.lock (docs/22) — never
+# workspace members, regardless of when each was authored relative to this file.
+exclude = ["spikes"]
 
 [workspace.package]
 version = "0.1.0"
@@ -31,7 +34,7 @@ tracing = "0.1"
 crossbeam-channel = "0.5"
 keyring = "3"
 whatlang = "0.16"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }

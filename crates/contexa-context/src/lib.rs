@@ -8,6 +8,7 @@ mod enricher;
 mod enrichers;
 mod language;
 mod registry;
+mod selection;
 
 pub use assembler::SnapshotAssembler;
 pub use cache::ContextCache;
@@ -17,3 +18,4 @@ pub use enricher::{ContextEnricher, PluginInfo};
 pub use enrichers::{ChromiumEnricher, VsCodeEnricher};
 pub use language::detect_language;
 pub use registry::{PluginRegistry, PluginSandbox};
+pub use selection::{NoSelectionSource, SelectionSource, SelectionTracker};

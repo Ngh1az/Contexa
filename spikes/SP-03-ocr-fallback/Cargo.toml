@@ -1,0 +1,23 @@
+[package]
+name = "sp03-ocr-fallback"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+contexa-vision = { path = "../../crates/contexa-vision" }
+contexa-core = { path = "../../crates/contexa-core" }
+
+[dependencies.windows]
+version = "0.62"
+features = [
+    "Media_Ocr",
+    "Graphics_Imaging",
+    "Storage_Streams",
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_Threading",
+]
+
+[profile.release]
+opt-level = 2

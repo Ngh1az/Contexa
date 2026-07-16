@@ -23,6 +23,7 @@ use crate::enricher::ContextEnricher;
 use crate::enrichers::{ChromiumEnricher, VsCodeEnricher};
 use crate::language::detect_language;
 use crate::registry::{PluginRegistry, PluginSandbox};
+use crate::selection::{NoSelectionSource, SelectionSource, SelectionTracker};
 
 // Buffer for lagging subscribers (docs/06 §7 `subscribe`); no spec'd size —
 // picked to comfortably absorb a burst of window switches between reads.
@@ -37,7 +38,7 @@ pub trait ContextEngine: Send + Sync {
     /// spawned. Reserved for future failure modes described in docs/06 §7.
     fn process_vision_result(&self, result: VisionResult) -> Result<Option<ContextSnapshot>>;
     fn subscribe(&self) -> broadcast::Receiver<ContextSnapshot>;
-    /// Always `None` for now — Selection Tracker (docs/06 §5.5) is deferred.
+    /// The selection captured on the most recent processed snapshot, if any.
     fn get_selection(&self) -> Option<String>;
     fn register_enricher(&self, enricher: Arc<dyn ContextEnricher>);
 }
@@ -47,11 +48,16 @@ pub struct ContexaContextEngine {
     registry: RwLock<PluginRegistry>,
     sandbox: PluginSandbox,
     change_detector: Mutex<ChangeDetector>,
+    selection: Mutex<Box<dyn SelectionSource>>,
     cache: ContextCache,
     events_tx: broadcast::Sender<ContextSnapshot>,
 }
 
 impl ContexaContextEngine {
+    /// Selection tracking defaults to a no-op (`NoSelectionSource`) — call
+    /// `enable_selection_tracking()` to turn on the real UIA/clipboard
+    /// implementation. See that method's doc comment for why this isn't
+    /// the default.
     #[must_use]
     pub fn new() -> Self {
         let (events_tx, _rx) = broadcast::channel(BROADCAST_CAPACITY);
@@ -60,6 +66,7 @@ impl ContexaContextEngine {
             registry: RwLock::new(PluginRegistry::new()),
             sandbox: PluginSandbox::default(),
             change_detector: Mutex::new(ChangeDetector::new()),
+            selection: Mutex::new(Box::new(NoSelectionSource)),
             cache: ContextCache::new(),
             events_tx,
         }
@@ -75,6 +82,21 @@ impl ContexaContextEngine {
         engine.register_enricher(Arc::new(ChromiumEnricher::edge()));
         engine.register_enricher(Arc::new(VsCodeEnricher));
         engine
+    }
+
+    /// Turns on real UIA/clipboard selection tracking (docs/06 §5.5).
+    /// Not the default: real UIA is apartment-threaded COM that expects a
+    /// message pump, and exercising it (plus the clipboard) from many
+    /// parallel threads without one — exactly how `cargo test` runs —
+    /// crashed the test binary with `STATUS_HEAP_CORRUPTION` during
+    /// development. Same reason `contexa-vision` keeps all live UIA/COM
+    /// code out of its unit tests. Call this once from the real
+    /// composition root (e.g. `apps/desktop`), never from tests.
+    pub fn enable_selection_tracking(&self) {
+        *self
+            .selection
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Box::new(SelectionTracker::new());
     }
 }
 
@@ -105,6 +127,12 @@ impl ContextEngine for ContexaContextEngine {
             self.sandbox.execute(enricher, &mut snapshot);
         }
 
+        snapshot.selected_text = self
+            .selection
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .poll();
+
         if let Some(text) = &snapshot.visible_text {
             snapshot.language = detect_language(text);
         }
@@ -128,7 +156,7 @@ impl ContextEngine for ContexaContextEngine {
     }
 
     fn get_selection(&self) -> Option<String> {
-        None
+        self.cache.get_current().and_then(|s| s.selected_text)
     }
 
     fn register_enricher(&self, enricher: Arc<dyn ContextEnricher>) {
@@ -222,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn get_selection_is_none_for_now() {
+    fn get_selection_is_none_before_any_snapshot() {
         assert_eq!(ContexaContextEngine::new().get_selection(), None);
     }
 

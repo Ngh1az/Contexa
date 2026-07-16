@@ -27,6 +27,7 @@ const ENOUGH_CHARS: usize = 2000;
 // address-bar-style lookups are shallow; bail out well before the general walk's budget.
 const FIND_MAX_DEPTH: usize = 12;
 const FIND_MAX_ELEMENTS: usize = 500;
+const SELECTION_MAX_CHARS: i32 = 65536;
 
 /// Runs `f` on the current thread with COM initialized STA (ADR-0008 — UIA
 /// requires it), uninitializing afterward. For one-shot callers (e.g.
@@ -94,6 +95,35 @@ impl UiaExtractor {
             tree_depth: u32::try_from(max_depth).unwrap_or(u32::MAX),
             duration_ms,
         })
+    }
+
+    /// Returns the current text selection on whichever element has keyboard
+    /// focus (docs/06 §5.5 Selection Tracker: "Try UIA `TextPattern`
+    /// selection" first). `None` if nothing is focused, the focused element
+    /// has no `TextPattern`, or the selection is empty — all normal, not
+    /// errors (falls back to clipboard tracking — see `contexa_vision::clipboard`).
+    #[must_use]
+    pub fn get_selected_text(&self) -> Option<String> {
+        let focused = self.automation.get_focused_element().ok()?;
+        let text_pattern = focused.get_pattern::<UITextPattern>().ok()?;
+        let ranges = text_pattern.get_selection().ok()?;
+
+        let mut combined = String::new();
+        for range in ranges {
+            if let Ok(text) = range.get_text(SELECTION_MAX_CHARS) {
+                if !text.is_empty() {
+                    if !combined.is_empty() {
+                        combined.push('\n');
+                    }
+                    combined.push_str(&text);
+                }
+            }
+        }
+        if combined.is_empty() {
+            None
+        } else {
+            Some(combined)
+        }
     }
 
     /// Finds the first element with the given `AutomationId` (e.g. Chrome's

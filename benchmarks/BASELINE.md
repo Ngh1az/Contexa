@@ -30,7 +30,7 @@
 
 | Spike | Status |
 |-------|--------|
-| SP-03 (OCR fallback) | not run — non-blocking |
+| SP-03 (OCR fallback) | Pass (2026-07-16) — latency p95 19-106ms (target <500ms), accuracy 98.2% vs. planted ground truth (target >90%), CPU 1.67% of machine over 10 calls (target <15%). Acrobat/Slack/Figma still unavailable on this machine (same gap as SP-01); validated against a Notepad ground-truth window instead. See `spikes/SP-03-ocr-fallback/report.md`. |
 | SP-06 (MCP + Cursor) | not run — non-blocking |
 | SP-09 (SQLCipher + sqlite-vec) | not run — blocks SQLCipher Pro (v1.1) only |
 

@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum CaptureMethod {
     Uia,
     Ocr,
@@ -41,7 +42,7 @@ impl std::str::FromStr for CaptureMethod {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ContextSnapshot {
     pub id: Uuid,
     pub timestamp: DateTime<Utc>,
