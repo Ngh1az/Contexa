@@ -70,12 +70,6 @@ Never lazy about: understanding the problem, input validation at trust boundarie
 
 ---
 
-## Prompt suggestions (user preference)
-
-End every **substantive** reply with 3–5 copy-paste follow-up prompts, in the user's language (usually Vietnamese), as a numbered list under `### Gợi ý prompt tiếp theo`. Keep each one a full pasteable sentence naming the engine/spike/doc domain. Skip after one-word acks or trivial fixes.
-
----
-
 ## Testing & phase gates
 
 - **Spikes:** one minimal runnable check per spike (see `docs/22`). **Production:** TDD for core logic.

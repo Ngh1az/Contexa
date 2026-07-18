@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-14 (updated after full app run)  
 **Owner:** —  
-**Status:** Partial Pass — 6/7 available apps ≥ 0.8; 3 spec apps not installed
+**Status:** Accepted (Pass) — 6/7 available apps ≥ 0.8; Acrobat/Slack/Figma intentionally excluded (owner decision — not installing test apps for this gate)
 
 ## Summary
 
@@ -36,7 +36,7 @@
 
 ## Recommendation
 
-**Proceed with UIA-first (ADR-0002 validated).** 86% of measurable apps ≥ 0.8 confidence supports the hypothesis; both known-weak app classes (Electron editors, canvas apps) already have planned mitigations (enrichers + OCR fallback + LSP extension). To formally close the 8/10 gate, re-run after installing/opening Acrobat, Slack, Figma — expected outcome: Acrobat partial, Slack fail-or-partial, Figma fail (all anticipated by the spec's fail-action).
+**Proceed with UIA-first (ADR-0002 validated).** 86% of measurable apps ≥ 0.8 confidence supports the hypothesis; both known-weak app classes (Electron editors, canvas apps) already have planned mitigations (enrichers + OCR fallback + LSP extension). Owner decision (2026-07-18): closing this gate as-is without installing Acrobat/Slack/Figma — their expected outcomes (Acrobat partial, Slack fail-or-partial, Figma fail) are already anticipated by the spec's fail-action and covered by existing mitigations, so re-running adds no new architectural information.
 
 ## Raw Data
 

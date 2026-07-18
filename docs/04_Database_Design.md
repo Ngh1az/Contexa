@@ -637,9 +637,14 @@ flowchart LR
 ```rust
 // rusqlite with bundled-sqlcipher (ADR/0010, ADR/0009)
 conn.execute_batch("PRAGMA key = 'x''...''';")?;
-conn.load_extension("vec0", None)?; // after PRAGMA key — validate in SP-09
+conn.load_extension("vec0", None)?; // after PRAGMA key — validated in SP-09
 conn.execute_batch("PRAGMA cipher_page_size = 4096;")?;
 conn.execute_batch("PRAGMA kdf_iter = 256000;")?;  // SQLCipher 4 defaults
+// REQUIRED, not optional: SP-09 found un-indexed vec0 KNN is a full-table scan, and
+// SQLite's default cache_size (~2MB) forces per-query page re-decryption, causing +250-300%
+// search regression. Size cache_size (or mmap_size) to the memory_chunks/vec_items working
+// set — see §9's -64000 (64MB) base default and scale it with actual DB size at runtime.
+conn.execute_batch("PRAGMA cache_size = -200000;")?;  // 200 MB — see spikes/SP-09-sqlcipher
 ```
 
 **Rust crates:**
@@ -668,11 +673,15 @@ CREATE TABLE encryption_meta (
 
 ### 16.6 Performance Impact
 
-| Operation | Unencrypted | SQLCipher | Delta |
+Validated in SP-09 (`spikes/SP-09-sqlcipher/report.md`); numbers below are measured, not estimated.
+**`PRAGMA cache_size` sized to the working set (§16.3) is required** — with SQLite's ~2MB default,
+semantic search regressed +254% to +300% at 10K-50K vectors, the opposite of the row below.
+
+| Operation | Unencrypted | SQLCipher (tuned `cache_size`) | Delta |
 |-----------|-------------|-----------|-------|
-| Insert snapshot | < 5 ms | < 8 ms | +60% |
-| Semantic search 10K | < 200 ms | < 280 ms | +40% |
-| App startup unlock | — | < 100 ms | — |
+| Insert snapshot | < 5 ms | < 8 ms | +60% (unvalidated estimate — SP-09 didn't measure single-row insert) |
+| Semantic search 10K (p95) | 13 ms | 4 ms | −69% (encrypted faster once pages are cached, not re-decrypted per query) |
+| App startup unlock | — | < 1 ms | measured at 1K-50K vectors, well under the 100ms target |
 
 ### 16.7 Recovery
 

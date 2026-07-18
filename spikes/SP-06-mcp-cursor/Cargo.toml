@@ -1,0 +1,22 @@
+[package]
+name = "sp06_mcp_cursor"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "sp06_mcp_cursor"
+path = "src/main.rs"
+
+[[bin]]
+name = "sp06_client"
+path = "src/client.rs"
+
+[dependencies]
+rmcp = { version = "0.8", features = ["server", "client", "macros", "transport-io", "transport-child-process", "schemars"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "signal", "process"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+schemars = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
