@@ -11,6 +11,22 @@ pub struct Region {
     pub height: u32,
 }
 
+impl Region {
+    /// Sentinel covering an entire captured frame regardless of its actual
+    /// size — `ocr.rs::crop()` clamps `width`/`height` to the frame's real
+    /// dimensions, so this is a correct "whole window" region without the
+    /// caller needing to know the window's size up front.
+    #[must_use]
+    pub const fn whole_window() -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            width: u32::MAX,
+            height: u32::MAX,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Frame {
     pub data: Vec<u8>, // BGRA

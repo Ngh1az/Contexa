@@ -237,7 +237,9 @@ pub fn run() {
 
             // Vision Engine's capture thread feeds `rx`; nothing consumed it
             // until now (docs/14 §5.1, §5.2 — M1 wiring).
-            let (vision, rx) = ContexaVisionEngine::new(Vec::new());
+            // Default exclusions (docs/16 §6.2) until Settings UI (Phase 3)
+            // lets the user add/remove their own on top of these.
+            let (vision, rx) = ContexaVisionEngine::new(contexa_vision::ExclusionFilter::default_rules());
             vision.start()?;
             let vision = Arc::new(vision);
             let context = Arc::new(ContexaContextEngine::with_builtin_enrichers());

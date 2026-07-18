@@ -10,11 +10,11 @@
 //!   (disabled, rate-limited, provider error) it falls back to `None` — the
 //!   documented fallback path ("Search fails → proceed with local context
 //!   only", docs/08 §13), now an actual fallback rather than a permanent stub.
-//! - OCR is region-gated: `VisionEngine::ocr_region` needs an `(x, y, w, h)`
-//!   region that nothing currently supplies (`WindowInfo` has no bounding
-//!   rect) — `trigger_ocr` is real and unit-testable, but `execute()` calls
-//!   it with `None` until a region source exists, degrading to the
-//!   documented "OCR fails → proceed with UIA text only" path.
+//! - OCR defaults to `Region::whole_window()` — `ocr.rs::crop()` clamps to
+//!   the actual captured frame, so a full-window OCR doesn't need the
+//!   caller to know the window's real size or screen position up front.
+//!   `trigger_ocr` still accepts a caller-supplied region for future
+//!   selection-targeted OCR; `execute()` just doesn't have one to pass yet.
 
 use std::sync::Arc;
 
@@ -92,7 +92,7 @@ impl PipelineManager {
         };
 
         let ocr = if plan.need_ocr {
-            self.trigger_ocr(None).await
+            self.trigger_ocr(Some(Region::whole_window())).await
         } else {
             None
         };
@@ -134,8 +134,9 @@ impl PipelineManager {
         self.provider.complete(&prompt.messages, opts).await
     }
 
-    /// Real OCR call, gated on a caller-supplied region — see the module doc
-    /// for why `execute()` currently always passes `None`.
+    /// Real OCR call, gated on a caller-supplied region — `None` skips OCR
+    /// entirely (used when nothing needs it); `execute()` passes
+    /// `Region::whole_window()` when `plan.need_ocr` is set.
     async fn trigger_ocr(&self, region: Option<Region>) -> Option<OcrResult> {
         let Some(region) = region else {
             tracing::debug!(

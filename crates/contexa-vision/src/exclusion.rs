@@ -27,6 +27,31 @@ impl ExclusionFilter {
         Self { rules }
     }
 
+    /// Privacy-sensitive app exclusions enabled by default (`docs/16_Security_Privacy.md`
+    /// §6.2) — password managers and financial/healthcare apps are never
+    /// captured unless the user removes them in Settings (Phase 3, not built
+    /// yet). The URL patterns from the same list aren't included here — see
+    /// this struct's doc comment above.
+    #[must_use]
+    pub fn default_rules() -> Vec<ExclusionRule> {
+        const APPS: &[&str] = &[
+            "1password.exe",
+            "bitwarden.exe",
+            "lastpass.exe",
+            "keepass.exe",
+            "mint.exe",
+            "quicken.exe",
+            "teladoc.exe",
+            "mychart.exe",
+        ];
+        APPS.iter()
+            .map(|app| ExclusionRule {
+                kind: ExclusionKind::App,
+                pattern: (*app).to_string(),
+            })
+            .collect()
+    }
+
     #[must_use]
     pub fn is_excluded(&self, window: &WindowInfo) -> bool {
         self.rules.iter().any(|rule| match rule.kind {
@@ -93,6 +118,19 @@ mod tests {
             kind: ExclusionKind::App,
             pattern: "keepass.exe".to_string(),
         }]);
+        assert!(!filter.is_excluded(&window("chrome.exe", "GitHub")));
+    }
+
+    #[test]
+    fn default_rules_exclude_known_password_manager() {
+        let filter = ExclusionFilter::new(ExclusionFilter::default_rules());
+        assert!(filter.is_excluded(&window("KeePass.exe", "KeePass")));
+        assert!(filter.is_excluded(&window("1Password.exe", "1Password")));
+    }
+
+    #[test]
+    fn default_rules_do_not_exclude_unrelated_app() {
+        let filter = ExclusionFilter::new(ExclusionFilter::default_rules());
         assert!(!filter.is_excluded(&window("chrome.exe", "GitHub")));
     }
 

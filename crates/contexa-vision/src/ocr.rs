@@ -58,6 +58,35 @@ impl OcrEngine {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    fn frame(width: u32, height: u32) -> Frame {
+        Frame {
+            data: vec![0u8; width as usize * height as usize * 4],
+            width,
+            height,
+            timestamp: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn whole_window_region_clamps_to_actual_frame_size() {
+        let (data, width, height) = crop(&frame(800, 600), &Region::whole_window());
+        assert_eq!((width, height), (800, 600));
+        assert_eq!(data.len(), 800 * 600 * 4);
+    }
+
+    #[test]
+    fn explicit_region_crops_to_requested_size() {
+        let (data, width, height) = crop(&frame(800, 600), &Region { x: 10, y: 10, width: 100, height: 50 });
+        assert_eq!((width, height), (100, 50));
+        assert_eq!(data.len(), 100 * 50 * 4);
+    }
+}
+
 // windows::core::Error is a thin HRESULT wrapper — cheap to take by value,
 // and map_err's closure argument arrives owned regardless (capture.rs's
 // win_err has the identical shape/rationale).

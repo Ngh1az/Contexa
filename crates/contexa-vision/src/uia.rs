@@ -203,13 +203,19 @@ fn walk(
             out.push('\n');
         }
     }
+    // docs/16 §7.1: password fields are redacted, never harvested — checked
+    // once per element since it gates both extraction paths below.
+    let is_password = el.is_password().unwrap_or(false);
+
     // pattern queries are COM QueryInterface calls — only pay for text-bearing controls
     let ct = el.get_control_type().ok();
     if matches!(
         ct,
         Some(ControlType::Edit | ControlType::ComboBox | ControlType::Document)
     ) {
-        if let Ok(vp) = el.get_pattern::<UIValuePattern>() {
+        if is_password {
+            out.push_str("[REDACTED]\n");
+        } else if let Ok(vp) = el.get_pattern::<UIValuePattern>() {
             if let Ok(v) = vp.get_value() {
                 if !v.is_empty() {
                     out.push_str(&v);
@@ -218,8 +224,11 @@ fn walk(
             }
         }
     }
-    // TextPattern on document/edit controls — the high-value extraction path
-    if matches!(ct, Some(ControlType::Document | ControlType::Edit)) {
+    // TextPattern on document/edit controls — the high-value extraction path.
+    // Skipped for password fields: the ValuePattern branch above already
+    // emitted "[REDACTED]" and TextPattern would otherwise risk exposing the
+    // same masked content through a different property.
+    if !is_password && matches!(ct, Some(ControlType::Document | ControlType::Edit)) {
         if let Ok(tp) = el.get_pattern::<UITextPattern>() {
             if let Ok(range) = tp.get_document_range() {
                 if let Ok(text) = range.get_text(65536) {
