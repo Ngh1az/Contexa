@@ -6,11 +6,11 @@
 
 
 
-**Documentation Version:** 1.3  
+**Documentation Version:** 1.4  
 
-**Status:** Reviewed — architecture decisions locked  
+**Status:** Reviewed — Phase 2/3 engines implemented  
 
-**Last Updated:** 2026-07-07
+**Last Updated:** 2026-07-18
 
 
 
@@ -243,6 +243,7 @@ See [14_Development_Roadmap.md](./14_Development_Roadmap.md) §10 for timeline.
 | 1.2 | 2026-07-07 | Reviewed — v1.1 priority features specified |
 
 | 1.3 | 2026-07-07 | Reviewed — Consistency audit; ADR-0010/0011; locked stack |
+| 1.4 | 2026-07-18 | Reviewed — Phase 0.5 spikes all Pass (SP-01–SP-09); Phase 1 (Vision/Context/DB) and Phase 2/3 (Memory, Orchestrator, Prompt, LLM adapters ×5, Search) Done; MCP server Partial (client deferred) — see [14_Development_Roadmap.md](./14_Development_Roadmap.md) |
 
 
 

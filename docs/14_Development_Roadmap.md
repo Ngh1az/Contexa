@@ -132,6 +132,8 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 | Deduplication              | Should   | 2d       |
 | Retention purger           | Should   | 2d       |
 
+**Status:** Done — `crates/contexa-memory` (`WorkingMemory`, `TimelineBuilder`, chunking, `Embedder`/`EmbeddingPipeline`, `SemanticSearch`, `Deduplicator`, `RetentionPurger`, `ContexaMemoryEngine` wiring it together). 16 unit tests pass; live embedding/DB paths verified via `examples/memory_smoke.rs`.
+
 ### 6.2 AI Orchestrator
 
 | Task                                  | Priority | Duration |
@@ -142,6 +144,8 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 | Request lifecycle management          | Must     | 3d       |
 | Response streaming                    | Must     | 3d       |
 
+**Status:** Done — `crates/contexa-orchestrator` (`DecisionEngine`, `PipelineManager`, `ContexaOrchestrator`); provider selection + fallback lives in `contexa-llm::ProviderSelector` (tries primary, falls back to secondary on failure) rather than in this crate. Response streaming uses a `ResponseStream`/`take_stream` oneshot-channel handback (documented deviation from the spec's direct-return signature — see `engine.rs` module doc). Known stand-ins pending real signals: `uia_confidence`/`should_search` in `decision.rs` are heuristic placeholders (no confidence score surfaced from Vision yet, no search-intent classifier); OCR trigger in `pipeline.rs` is region-gated and currently always called with `None` until `WindowInfo` carries a bounding rect. 10 unit tests pass; `examples/orchestrator_smoke.rs` exercises the live pipeline.
+
 ### 6.3 Prompt Builder
 
 | Task                             | Priority | Duration |
@@ -150,6 +154,8 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 | Context/memory/search formatters | Must     | 3d       |
 | Token budget manager             | Must     | 3d       |
 | Action-specific templates        | Must     | 2d       |
+
+**Status:** Done — `crates/contexa-prompt` (`ContexaPromptBuilder`, `Context`/`Memory`/`Search`/`TimelineFormatter`, action-specific `templates.rs`, `TokenBudgetManager`). 19 unit tests pass.
 
 ### 6.4 LLM Adapters
 
@@ -160,6 +166,8 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 | Anthropic adapter | Should   | 3d       |
 | Gemini adapter    | Should   | 3d       |
 | LM Studio adapter | Could    | 2d       |
+
+**Status:** Done (all 5) — `crates/contexa-llm` (`OpenAiProvider`, `OllamaProvider`, `AnthropicProvider`, `GeminiProvider`, `LmStudioProvider`, unified `LlmProvider` trait, `CredentialVault`). 25 unit tests pass; `examples/llm_smoke.rs`.
 
 ### Milestone: M2 — AI Pipeline
 
@@ -201,6 +209,8 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 | Search cache              | Should   | 2d       |
 | Query formulator          | Should   | 2d       |
 
+**Status:** Done except Brave adapter — `crates/contexa-search` (`SearchAdapter` trait, `DuckDuckGoAdapter`, `PrivacyGate`, `SearchCache`, `QueryFormulator`, `RateLimiter`, `ContexaSearchEngine`). Brave Search adapter (Should) not built — DuckDuckGo is the only live provider (ADR-0011). 17 unit tests pass; `examples/search_smoke.rs`.
+
 ### 7.4 Timeline View
 
 | Task                    | Priority | Duration |
@@ -227,6 +237,8 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 | Audit logging                  | Must     | 2d       |
 | MCP client (basic)             | Should   | 5d       |
 | HTTP/SSE transport             | Could    | 3d       |
+
+**Status:** Partial — `crates/contexa-mcp` (`ContexaMcpServer` with 5 tools: `get_current_context`, `get_visible_text`, `get_recent_context`, `get_timeline`, `search_context`; `AuthMiddleware` with bcrypt + post-first-verify token cache to stay under the <10ms target; `AuditLogger`; `contexa_mcp_server` stdio binary with a `--generate-token` stopgap ahead of the Phase 3 settings UI). MCP client (Should) and HTTP/SSE transport (Could) not built — `DecisionEngine::decide()` never sets `need_mcp`, so nothing calls a client yet. 1 integration test passes (`tests/mcp_integration.rs`); protocol validated against `spikes/SP-06-mcp-cursor` (Pass, 2026-07-18).
 
 ### 8.2 Plugin System
 
