@@ -8,9 +8,9 @@ use std::sync::Arc;
 use chrono::{Duration, Utc};
 use contexa_core::{CaptureMethod, ContextSnapshot};
 use contexa_db::{
-    ContextRepository, Database, EventType, MemoryChunk, MemoryRepository, Pagination,
-    SqliteContextRepository, SqliteMemoryRepository, SqliteTimelineRepository, TimeRange,
-    TimelineEvent, TimelineRepository,
+    ContextRepository, Database, EventType, McpRepository, MemoryChunk, MemoryRepository,
+    Pagination, SqliteContextRepository, SqliteMcpRepository, SqliteMemoryRepository,
+    SqliteTimelineRepository, TimeRange, TimelineEvent, TimelineRepository,
 };
 use uuid::Uuid;
 
@@ -102,6 +102,55 @@ async fn memory_repository_searches_and_purges() {
 }
 
 #[tokio::test]
+async fn memory_repository_deletes_and_reports_stats() {
+    let (_dir, db) = open_test_db();
+    let repo = SqliteMemoryRepository(db);
+
+    let make_chunk = |content: &str| MemoryChunk {
+        id: Uuid::new_v4(),
+        context_id: None,
+        content: content.to_string(),
+        content_hash: format!("hash-{content}"),
+        timestamp: Utc::now(),
+        application: "Code.exe".to_string(),
+        metadata: HashMap::new(),
+        token_count: 4,
+    };
+
+    let chunk_a = make_chunk("alpha");
+    let chunk_b = make_chunk("beta");
+    repo.insert_chunk(&chunk_a).await.expect("insert_chunk a");
+    repo.insert_chunk(&chunk_b).await.expect("insert_chunk b");
+    let vector = vec![0.2f32; 384];
+    repo.insert_embedding(&chunk_a.id.to_string(), &vector, "all-MiniLM-L6-v2")
+        .await
+        .expect("insert_embedding a");
+    repo.insert_embedding(&chunk_b.id.to_string(), &vector, "all-MiniLM-L6-v2")
+        .await
+        .expect("insert_embedding b");
+
+    let stats = repo.get_stats().await.expect("get_stats");
+    assert_eq!(stats.total_chunks, 2);
+    assert!(stats.oldest_record.is_some());
+    assert!(stats.database_size_mb > 0.0);
+
+    repo.delete_chunk(&chunk_a.id.to_string())
+        .await
+        .expect("delete_chunk");
+    let remaining = repo
+        .search_similar(&vector, 10, 1.0)
+        .await
+        .expect("search_similar after delete_chunk");
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].id, chunk_b.id);
+
+    let deleted = repo.delete_all().await.expect("delete_all");
+    assert_eq!(deleted, 1);
+    let stats_after = repo.get_stats().await.expect("get_stats after delete_all");
+    assert_eq!(stats_after.total_chunks, 0);
+}
+
+#[tokio::test]
 async fn timeline_repository_returns_a_page_in_range() {
     let (_dir, db) = open_test_db();
     let repo = SqliteTimelineRepository(db);
@@ -136,4 +185,34 @@ async fn timeline_repository_returns_a_page_in_range() {
     assert_eq!(page.total, 1);
     assert_eq!(page.items.len(), 1);
     assert_eq!(page.items[0].id, event.id);
+}
+
+#[tokio::test]
+async fn mcp_repository_manages_tokens_and_audit_log() {
+    let (_dir, db) = open_test_db();
+    let repo = SqliteMcpRepository(db);
+
+    let id = repo
+        .create_token("Cursor", "bcrypt-hash-placeholder")
+        .await
+        .expect("create_token");
+
+    let active = repo.find_active_tokens().await.expect("find_active_tokens");
+    assert_eq!(active.len(), 1);
+    assert_eq!(active[0].id, id);
+    assert_eq!(active[0].label, "Cursor");
+    assert!(!active[0].revoked);
+    assert!(active[0].last_used_at.is_none());
+
+    repo.touch_token(&id).await.expect("touch_token");
+    let touched = repo.find_active_tokens().await.expect("find_active_tokens");
+    assert!(touched[0].last_used_at.is_some());
+
+    repo.log_tool_call(&id, "get_current_context", "{}")
+        .await
+        .expect("log_tool_call");
+
+    repo.revoke_token(&id).await.expect("revoke_token");
+    let after_revoke = repo.find_active_tokens().await.expect("find_active_tokens");
+    assert!(after_revoke.is_empty());
 }

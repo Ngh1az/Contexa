@@ -59,15 +59,19 @@ CREATE INDEX idx_memory_app ON memory_chunks(application);
 
 -- Load sqlite-vec extension at connection init (rusqlite — ADR/0010).
 -- Default: all-MiniLM-L6-v2 (384-dim) via fastembed. See ADR/0006.
+-- `distance_metric=cosine` is explicit — vec0's default is L2 (unbounded for
+-- 384/768-dim vectors), but every doc (docs/07, docs/09) and SP-04's own
+-- comment describe cosine similarity search; leaving the column at its L2
+-- default silently breaks any "distance -> similarity score" conversion.
 CREATE VIRTUAL TABLE embeddings USING vec0(
     chunk_id    TEXT PRIMARY KEY,
-    embedding   FLOAT[384]
+    embedding   FLOAT[384] distance_metric=cosine
 );
 
 -- Quality mode: nomic-embed-text (768-dim) via Ollama
 CREATE VIRTUAL TABLE embeddings_768 USING vec0(
     chunk_id    TEXT PRIMARY KEY,
-    embedding   FLOAT[768]
+    embedding   FLOAT[768] distance_metric=cosine
 );
 
 CREATE TABLE embedding_meta (

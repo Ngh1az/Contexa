@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EventType {
     ContextChange,
     AppSwitch,
@@ -51,7 +52,7 @@ pub struct MemoryChunk {
     pub token_count: i64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TimelineEvent {
     pub id: Uuid,
     pub timestamp: DateTime<Utc>,
@@ -63,7 +64,7 @@ pub struct TimelineEvent {
     pub context_id: Option<Uuid>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ScoredChunk {
     pub id: Uuid,
     pub content: String,
@@ -95,4 +96,26 @@ pub struct Pagination {
 pub struct Page<T> {
     pub items: Vec<T>,
     pub total: i64,
+}
+
+/// `docs/07_Memory_Engine.md` §9 `MemoryStats` — a DB-layer query result, so
+/// it lives here and `contexa-memory` reuses it directly rather than defining
+/// (and converting to/from) a duplicate type.
+#[derive(Debug, Clone, Default)]
+pub struct MemoryStats {
+    pub total_chunks: u64,
+    pub total_timeline_events: u64,
+    pub database_size_mb: f64,
+    pub oldest_record: Option<DateTime<Utc>>,
+}
+
+/// `docs/11_MCP_Runtime.md` §7.1 `TokenInfo` — a `mcp_tokens` row.
+#[derive(Debug, Clone)]
+pub struct TokenInfo {
+    pub id: String,
+    pub token_hash: String,
+    pub label: String,
+    pub created_at: DateTime<Utc>,
+    pub last_used_at: Option<DateTime<Utc>>,
+    pub revoked: bool,
 }

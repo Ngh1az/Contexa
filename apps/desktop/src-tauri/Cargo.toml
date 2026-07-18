@@ -29,6 +29,15 @@ serde_json = { workspace = true }
 contexa-core = { path = "../../../crates/contexa-core" }
 contexa-vision = { path = "../../../crates/contexa-vision" }
 contexa-context = { path = "../../../crates/contexa-context" }
+contexa-db = { path = "../../../crates/contexa-db" }
+contexa-memory = { path = "../../../crates/contexa-memory" }
+contexa-prompt = { path = "../../../crates/contexa-prompt" }
+contexa-llm = { path = "../../../crates/contexa-llm" }
+contexa-search = { path = "../../../crates/contexa-search" }
+contexa-orchestrator = { path = "../../../crates/contexa-orchestrator" }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-global-shortcut = "2"

@@ -8,8 +8,20 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+contexa-core = { path = "../contexa-core" }
+contexa-db = { path = "../contexa-db" }
 contexa-context = { path = "../contexa-context" }
 contexa-memory = { path = "../contexa-memory" }
 contexa-search = { path = "../contexa-search" }
 contexa-prompt = { path = "../contexa-prompt" }
 contexa-llm = { path = "../contexa-llm" }
+contexa-vision = { path = "../contexa-vision" }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync"] }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tempfile = { workspace = true }

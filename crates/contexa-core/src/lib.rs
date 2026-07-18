@@ -4,4 +4,7 @@ mod error;
 mod types;
 
 pub use error::{ContexaError, Result};
-pub use types::{CaptureMethod, ContextSnapshot};
+pub use types::{
+    CaptureMethod, ContextSnapshot, ExecutionPlan, RequestAction, RequestHandle,
+    RequestPreferences, RequestStatus, UserRequest,
+};

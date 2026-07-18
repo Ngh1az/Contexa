@@ -4,11 +4,12 @@ mod database;
 mod model;
 mod repository;
 
-pub use database::Database;
+pub use database::{default_path, Database};
 pub use model::{
-    EventType, MemoryChunk, Page, Pagination, PurgeStats, ScoredChunk, TimeRange, TimelineEvent,
+    EventType, MemoryChunk, MemoryStats, Page, Pagination, PurgeStats, ScoredChunk, TimeRange,
+    TimelineEvent, TokenInfo,
 };
 pub use repository::{
-    ContextRepository, MemoryRepository, SqliteContextRepository, SqliteMemoryRepository,
-    SqliteTimelineRepository, TimelineRepository,
+    ContextRepository, McpRepository, MemoryRepository, SqliteContextRepository,
+    SqliteMcpRepository, SqliteMemoryRepository, SqliteTimelineRepository, TimelineRepository,
 };

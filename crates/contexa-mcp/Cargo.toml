@@ -7,6 +7,27 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[[bin]]
+name = "contexa_mcp_server"
+path = "src/bin/contexa_mcp_server.rs"
+
 [dependencies]
-contexa-context = { path = "../contexa-context" }
+contexa-core = { path = "../contexa-core" }
+contexa-db = { path = "../contexa-db" }
 contexa-memory = { path = "../contexa-memory" }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-std", "signal"] }
+rmcp = { workspace = true, features = ["server", "transport-io", "macros", "schemars"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bcrypt = { workspace = true }
+rand = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+rmcp = { workspace = true, features = ["client", "transport-child-process"] }

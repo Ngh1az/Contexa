@@ -58,3 +58,80 @@ pub struct ContextSnapshot {
     pub language: Option<String>,
     pub capture_method: CaptureMethod,
 }
+
+// docs/08_AI_Orchestrator.md §9, §5.1, §8 — shared by `contexa-prompt` and
+// `contexa-orchestrator`. Living here (rather than in `contexa-orchestrator`,
+// which is where docs/08 defines them) avoids a dependency cycle: Orchestrator
+// depends on Prompt Builder, so Prompt Builder can't depend back on
+// Orchestrator for these types. Same reasoning that put `ContextSnapshot` here.
+
+#[derive(Debug, Clone)]
+pub struct UserRequest {
+    pub id: Uuid,
+    pub action: RequestAction,
+    pub query: Option<String>,
+    pub context_override: Option<ContextSnapshot>,
+    pub preferences: RequestPreferences,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestAction {
+    Chat,
+    Explain,
+    Summarize,
+    Translate { target_lang: String },
+    Search,
+    Recall,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RequestPreferences {
+    pub stream: bool,
+    pub max_tokens: Option<u32>,
+    pub temperature: Option<f32>,
+    pub force_search: bool,
+    pub force_ocr: bool,
+}
+
+impl Default for RequestPreferences {
+    fn default() -> Self {
+        Self {
+            stream: true,
+            max_tokens: None,
+            temperature: None,
+            force_search: false,
+            force_ocr: false,
+        }
+    }
+}
+
+// Shape is docs/08_AI_Orchestrator.md §8's `ExecutionPlan` verbatim — each
+// field is an independent yes/no decision the Decision Engine makes, not
+// exclusive states an enum would fit.
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ExecutionPlan {
+    pub need_context: bool,
+    pub need_ocr: bool,
+    pub need_memory: bool,
+    pub need_timeline: bool,
+    pub need_search: bool,
+    pub need_mcp: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct RequestHandle {
+    pub id: String,
+    pub status: RequestStatus,
+    pub started_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestStatus {
+    Planning,
+    Gathering,
+    Generating,
+    Complete,
+    Failed(String),
+    Cancelled,
+}

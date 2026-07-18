@@ -34,6 +34,15 @@ pub enum ContexaError {
 
     #[error("Background task failed: {0}")]
     TaskJoin(String),
+
+    #[error("Search is disabled")]
+    SearchDisabled,
+
+    #[error("Rate limited")]
+    RateLimited,
+
+    #[error("Unauthorized")]
+    Unauthorized,
 }
 
 pub type Result<T> = std::result::Result<T, ContexaError>;

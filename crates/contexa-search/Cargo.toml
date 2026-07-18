@@ -9,3 +9,15 @@ workspace = true
 
 [dependencies]
 contexa-core = { path = "../contexa-core" }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "time"] }
+reqwest = { workspace = true }
+scraper = { workspace = true }
+urlencoding = { workspace = true }
+lru = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+uuid = { workspace = true }

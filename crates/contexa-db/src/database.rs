@@ -20,6 +20,16 @@ const DEFAULT_VEC_EXTENSION: &str = concat!(
     "/../../vendor/sqlite-vec/vec0.dll"
 );
 
+/// `%APPDATA%\Contexa\contexa.db` — `docs/04_Database_Design.md` §"Database
+/// file location". Shared by the desktop app and the separately-spawned MCP
+/// server binary (`crates/contexa-mcp/src/bin/contexa_mcp_server.rs`) so
+/// both open the same file — single source of truth for the path.
+#[must_use]
+pub fn default_path() -> PathBuf {
+    let app_data = std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(app_data).join("Contexa").join("contexa.db")
+}
+
 /// Single writer + round-robin read pool over one `SQLite` (WAL) file, with the
 /// sqlite-vec extension loaded on every connection.
 pub struct Database {

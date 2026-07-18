@@ -13,7 +13,8 @@ use contexa_core::{CaptureMethod, ContexaError, ContextSnapshot, Result};
 
 use crate::database::Database;
 use crate::model::{
-    EventType, MemoryChunk, Page, Pagination, PurgeStats, ScoredChunk, TimeRange, TimelineEvent,
+    EventType, MemoryChunk, MemoryStats, Page, Pagination, PurgeStats, ScoredChunk, TimeRange,
+    TimelineEvent, TokenInfo,
 };
 
 #[async_trait]
@@ -34,6 +35,35 @@ pub trait MemoryRepository: Send + Sync {
         max_distance: f32,
     ) -> Result<Vec<ScoredChunk>>;
     async fn purge_before(&self, date: DateTime<Utc>) -> Result<PurgeStats>;
+    /// # Errors
+    /// Returns an error if the delete fails.
+    async fn delete_chunk(&self, id: &str) -> Result<()>;
+    /// # Errors
+    /// Returns an error if the delete fails.
+    async fn delete_all(&self) -> Result<u64>;
+    /// # Errors
+    /// Returns an error if the stats queries fail.
+    async fn get_stats(&self) -> Result<MemoryStats>;
+}
+
+#[async_trait]
+pub trait McpRepository: Send + Sync {
+    /// Returns the generated token id.
+    /// # Errors
+    /// Returns an error if the insert fails.
+    async fn create_token(&self, label: &str, token_hash: &str) -> Result<String>;
+    /// # Errors
+    /// Returns an error if the query fails.
+    async fn find_active_tokens(&self) -> Result<Vec<TokenInfo>>;
+    /// # Errors
+    /// Returns an error if the update fails.
+    async fn touch_token(&self, id: &str) -> Result<()>;
+    /// # Errors
+    /// Returns an error if the update fails.
+    async fn revoke_token(&self, id: &str) -> Result<()>;
+    /// # Errors
+    /// Returns an error if the insert fails.
+    async fn log_tool_call(&self, token_id: &str, tool_name: &str, request_summary: &str) -> Result<()>;
 }
 
 #[async_trait]
@@ -426,6 +456,72 @@ impl MemoryRepository for SqliteMemoryRepository {
         })
         .await
     }
+
+    async fn delete_chunk(&self, id: &str) -> Result<()> {
+        let db = self.0.clone();
+        let id = id.to_string();
+        blocking(move || {
+            db.with_write(|conn| {
+                let tx = conn.unchecked_transaction()?;
+                // vec0 virtual tables (embeddings/embeddings_768) have no FK to
+                // memory_chunks, so they don't cascade — delete explicitly.
+                // embedding_meta does cascade via its own FK.
+                tx.execute("DELETE FROM embeddings WHERE chunk_id = ?1", params![id])?;
+                tx.execute("DELETE FROM embeddings_768 WHERE chunk_id = ?1", params![id])?;
+                tx.execute("DELETE FROM memory_chunks WHERE id = ?1", params![id])?;
+                tx.commit()?;
+                Ok(())
+            })
+        })
+        .await
+    }
+
+    async fn delete_all(&self) -> Result<u64> {
+        let db = self.0.clone();
+        blocking(move || {
+            db.with_write(|conn| {
+                let tx = conn.unchecked_transaction()?;
+                tx.execute("DELETE FROM embeddings", [])?;
+                tx.execute("DELETE FROM embeddings_768", [])?;
+                let deleted = tx.execute("DELETE FROM memory_chunks", [])?;
+                tx.commit()?;
+                Ok(deleted as u64)
+            })
+        })
+        .await
+    }
+
+    async fn get_stats(&self) -> Result<MemoryStats> {
+        let db = self.0.clone();
+        blocking(move || {
+            db.with_read(|conn| {
+                let total_chunks: i64 =
+                    conn.query_row("SELECT COUNT(*) FROM memory_chunks", [], |row| row.get(0))?;
+                let total_timeline_events: i64 = conn.query_row(
+                    "SELECT COUNT(*) FROM timeline_events",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let oldest: Option<String> = conn.query_row(
+                    "SELECT MIN(timestamp) FROM memory_chunks",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let page_count: i64 = conn.query_row("PRAGMA page_count", [], |row| row.get(0))?;
+                let page_size: i64 = conn.query_row("PRAGMA page_size", [], |row| row.get(0))?;
+
+                #[allow(clippy::cast_precision_loss)]
+                let database_size_mb = (page_count * page_size) as f64 / (1024.0 * 1024.0);
+                Ok(MemoryStats {
+                    total_chunks: u64::try_from(total_chunks).unwrap_or(0),
+                    total_timeline_events: u64::try_from(total_timeline_events).unwrap_or(0),
+                    database_size_mb,
+                    oldest_record: oldest.as_deref().map(parse_timestamp).transpose()?,
+                })
+            })
+        })
+        .await
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -525,6 +621,123 @@ impl TimelineRepository for SqliteTimelineRepository {
                     .collect::<Result<Vec<_>>>()?;
 
                 Ok(Page { items, total })
+            })
+        })
+        .await
+    }
+}
+
+// ---------------------------------------------------------------------------
+// McpRepository
+// ---------------------------------------------------------------------------
+
+pub struct SqliteMcpRepository(pub Arc<Database>);
+
+#[async_trait]
+impl McpRepository for SqliteMcpRepository {
+    async fn create_token(&self, label: &str, token_hash: &str) -> Result<String> {
+        let db = self.0.clone();
+        let label = label.to_string();
+        let token_hash = token_hash.to_string();
+        let id = Uuid::new_v4().to_string();
+        let id_for_insert = id.clone();
+        // `created_at` inserted explicitly as RFC3339 (not the column's
+        // SQLite-native `datetime('now')` default) — `parse_timestamp` below
+        // expects RFC3339, same convention as every other table in this file.
+        let created_at = Utc::now().to_rfc3339();
+        blocking(move || {
+            db.with_write(|conn| {
+                conn.execute(
+                    "INSERT INTO mcp_tokens (id, token_hash, label, created_at) \
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![id_for_insert, token_hash, label, created_at],
+                )?;
+                Ok(())
+            })
+        })
+        .await?;
+        Ok(id)
+    }
+
+    async fn find_active_tokens(&self) -> Result<Vec<TokenInfo>> {
+        let db = self.0.clone();
+        blocking(move || {
+            db.with_read(|conn| {
+                let mut stmt = conn.prepare(
+                    "SELECT id, token_hash, label, created_at, last_used_at, revoked \
+                     FROM mcp_tokens WHERE revoked = 0",
+                )?;
+                let rows = stmt
+                    .query_map([], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, String>(3)?,
+                            row.get::<_, Option<String>>(4)?,
+                            row.get::<_, i64>(5)?,
+                        ))
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+
+                rows.into_iter()
+                    .map(|(id, token_hash, label, created_at, last_used_at, revoked)| {
+                        Ok(TokenInfo {
+                            id,
+                            token_hash,
+                            label,
+                            created_at: parse_timestamp(&created_at)?,
+                            last_used_at: last_used_at.as_deref().map(parse_timestamp).transpose()?,
+                            revoked: revoked != 0,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()
+            })
+        })
+        .await
+    }
+
+    async fn touch_token(&self, id: &str) -> Result<()> {
+        let db = self.0.clone();
+        let id = id.to_string();
+        let last_used_at = Utc::now().to_rfc3339();
+        blocking(move || {
+            db.with_write(|conn| {
+                conn.execute(
+                    "UPDATE mcp_tokens SET last_used_at = ?1 WHERE id = ?2",
+                    params![last_used_at, id],
+                )?;
+                Ok(())
+            })
+        })
+        .await
+    }
+
+    async fn revoke_token(&self, id: &str) -> Result<()> {
+        let db = self.0.clone();
+        let id = id.to_string();
+        blocking(move || {
+            db.with_write(|conn| {
+                conn.execute("UPDATE mcp_tokens SET revoked = 1 WHERE id = ?1", params![id])?;
+                Ok(())
+            })
+        })
+        .await
+    }
+
+    async fn log_tool_call(&self, token_id: &str, tool_name: &str, request_summary: &str) -> Result<()> {
+        let db = self.0.clone();
+        let token_id = token_id.to_string();
+        let tool_name = tool_name.to_string();
+        let request_summary = request_summary.to_string();
+        blocking(move || {
+            db.with_write(|conn| {
+                conn.execute(
+                    "INSERT INTO mcp_audit_log (token_id, tool_name, request_summary) \
+                     VALUES (?1, ?2, ?3)",
+                    params![token_id, tool_name, request_summary],
+                )?;
+                Ok(())
             })
         })
         .await
