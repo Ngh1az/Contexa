@@ -1,26 +1,24 @@
-import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { ContextIndicator } from "./components/ContextIndicator";
+import { QuickActionBar } from "./components/QuickActionBar";
+import { ResponsePanel } from "./components/ResponsePanel";
+import { OverlayFooter } from "./components/OverlayFooter";
+import { initialOverlayState, overlayReducer } from "./lib/overlayState";
+import {
+  type ContextSnapshot,
+  type RequestActionKind,
+  cancelRequest,
+  getCurrentContext,
+  handleRequest,
+  hideOverlay,
+  onAiChunk,
+  onAiComplete,
+  onAiError,
+  onOverlayFocus,
+} from "./lib/tauri";
 
-// Mirrors contexa_core::ContextSnapshot (crates/contexa-core/src/types.rs) —
-// flat shape, matches the DB row directly; see that module's doc comment.
-interface ContextSnapshot {
-  id: string;
-  timestamp: string;
-  window_title: string;
-  process_name: string;
-  process_id: number;
-  hwnd: number | null;
-  url: string | null;
-  document_path: string | null;
-  visible_text: string | null;
-  selected_text: string | null;
-  metadata: Record<string, string>;
-  language: string | null;
-  capture_method: "uia" | "ocr" | "hybrid";
-}
-
-const POLL_INTERVAL_MS = 1500;
+const CONTEXT_POLL_MS = 1500;
 
 function useCurrentContext() {
   const [context, setContext] = useState<ContextSnapshot | null>(null);
@@ -30,7 +28,7 @@ function useCurrentContext() {
     let cancelled = false;
 
     const poll = () => {
-      invoke<ContextSnapshot | null>("get_current_context")
+      getCurrentContext()
         .then((result) => {
           if (!cancelled) {
             setContext(result);
@@ -38,14 +36,12 @@ function useCurrentContext() {
           }
         })
         .catch((err: unknown) => {
-          if (!cancelled) {
-            setError(String(err));
-          }
+          if (!cancelled) setError(String(err));
         });
     };
 
     poll();
-    const id = setInterval(poll, POLL_INTERVAL_MS);
+    const id = setInterval(poll, CONTEXT_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -55,72 +51,108 @@ function useCurrentContext() {
   return { context, error };
 }
 
-function ContextPanel({
-  context,
-  error,
-}: {
-  context: ContextSnapshot | null;
-  error: string | null;
-}) {
-  if (error) {
-    return <span className="context-empty">Context unavailable: {error}</span>;
-  }
-  if (!context) {
-    return <span className="context-empty">No context yet — switch windows to capture one.</span>;
-  }
-
-  const detail = context.url ?? context.document_path;
-
-  return (
-    <div className="context-row">
-      <span className="context-app">{context.process_name}</span>
-      <span className="context-title" title={context.window_title}>
-        {context.window_title}
-      </span>
-      {detail && (
-        <span className="context-detail" title={detail}>
-          {detail}
-        </span>
-      )}
-    </div>
-  );
-}
-
 function App() {
-  const { context, error } = useCurrentContext();
+  const [state, dispatch] = useReducer(overlayReducer, initialOverlayState);
+  const { context, error: contextError } = useCurrentContext();
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // ai-chunk/ai-complete/ai-error (docs/12 §7.2) — wired once for the life
+  // of this preloaded window.
+  useEffect(() => {
+    const unlistenChunk = onAiChunk((e) =>
+      dispatch({ type: "chunk", requestId: e.request_id, content: e.content }),
+    );
+    const unlistenComplete = onAiComplete((e) => dispatch({ type: "complete", requestId: e.request_id }));
+    const unlistenError = onAiError((e) =>
+      dispatch({ type: "error", requestId: e.request_id, message: e.error }),
+    );
+    return () => {
+      unlistenChunk.then((fn) => fn());
+      unlistenComplete.then((fn) => fn());
+      unlistenError.then((fn) => fn());
+    };
+  }, []);
+
+  // Reset to a clean slate + focus input every time the overlay reopens
+  // (docs/12 §5.2: Hidden -> Input) — the window is preloaded, not remounted.
+  useEffect(() => {
+    inputRef.current?.focus();
+    const unlisten = onOverlayFocus(() => {
+      dispatch({ type: "reset" });
+      setQuery("");
+      inputRef.current?.focus();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  const submit = useCallback(async (action: RequestActionKind, actionQuery?: string) => {
+    const res = await handleRequest({ action, query: actionQuery, stream: true });
+    if (res.status === "rejected") {
+      dispatch({ type: "rejected", reason: res.reason ?? "Request rejected" });
+      return;
+    }
+    dispatch({ type: "submit", requestId: res.request_id });
+  }, []);
+
+  const onSubmitQuery = () => {
+    const trimmed = query.trim();
+    if (!trimmed || state.phase === "processing") return;
+    void submit("chat", trimmed);
+  };
+
+  const onEscape = useCallback(async () => {
+    if (state.phase === "processing" && state.requestId) {
+      await cancelRequest(state.requestId).catch(() => undefined);
+      dispatch({ type: "cancel" });
+    }
+    await hideOverlay();
+  }, [state.phase, state.requestId]);
 
   return (
-    <main className="overlay">
-      <header className="bar">
-        <span className="prompt">Ask anything about your screen…</span>
+    <motion.main
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          void onEscape();
+        }
+      }}
+      className="flex h-full w-full flex-col overflow-hidden bg-bg-primary text-text-primary"
+    >
+      <header className="px-4 pb-2 pt-4">
+        <textarea
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSubmitQuery();
+            }
+          }}
+          placeholder="Ask anything about your screen…"
+          rows={1}
+          className="w-full resize-none bg-transparent text-sm text-text-primary placeholder:text-text-secondary focus:outline-none"
+        />
       </header>
 
-      <section className="actions">
-        <button type="button" disabled>
-          Explain
-        </button>
-        <button type="button" disabled>
-          Summarize
-        </button>
-        <button type="button" disabled>
-          Translate
-        </button>
-        <button type="button" disabled>
-          Search
-        </button>
-      </section>
+      <QuickActionBar disabled={state.phase === "processing"} onAction={(action) => void submit(action)} />
 
-      <section className="context">
-        <ContextPanel context={context} error={error} />
-      </section>
+      <div className="border-t border-border px-4 py-1.5">
+        <ContextIndicator context={context} error={contextError} />
+      </div>
 
-      <section className="body">
-        <p>
-          Hotkey: <kbd>Alt</kbd>+<kbd>Space</kbd> (toggle). Window is preloaded at startup
-          (hidden → show).
-        </p>
-      </section>
-    </main>
+      <div className="flex-1 overflow-y-auto">
+        <ResponsePanel phase={state.phase} response={state.response} error={state.error} />
+      </div>
+
+      <OverlayFooter />
+    </motion.main>
   );
 }
 

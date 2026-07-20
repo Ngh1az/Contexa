@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+/* Self-hosted (docs/16 §7.2: background processing is 100% local — no
+   runtime requests to a fonts CDN). Only the weights docs/12 §12.2 uses. */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+
+/* highlight.js theme for markdown code blocks (docs/12 §7.3) — github-dark
+   is closest to the overlay's own palette without a custom stylesheet. */
+@import "highlight.js/styles/github-dark.css";
+
+/* docs/12 §12.1 — Dark Theme design tokens */
+@theme {
+  --color-bg-primary: #0f0f14;
+  --color-bg-secondary: #1a1a24;
+  --color-text-primary: #e8e8ed;
+  --color-text-secondary: #9898a4;
+  --color-accent: #6c5ce7;
+  --color-accent-hover: #7d6ff0;
+  --color-success: #00b894;
+  --color-warning: #fdcb6e;
+  --color-error: #e17055;
+  --color-border: #2a2a36;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* WebView2's default UA focus ring renders as a thick yellow rectangle on
+   any click-to-focus, not just keyboard nav — suppress it everywhere and
+   rely only on our own `:focus-visible` styling (docs/13 accessibility:
+   keyboard focus must stay visible, so this isn't a blanket outline:none). */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

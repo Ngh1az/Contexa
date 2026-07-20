@@ -1,9 +1,9 @@
 # UI / UX Design
 
 **Project:** Contexa — AI Context Platform  
-**Version:** 1.1  
+**Version:** 1.2  
 **Status:** Reviewed  
-**Last Updated:** 2026-07-06
+**Last Updated:** 2026-07-18
 
 ---
 
@@ -106,16 +106,26 @@ stateDiagram-v2
 
 ### 5.3 Dimensions & Positioning
 
+**v1.2 pivot:** the overlay is a regular OS-decorated window (native title
+bar — minimize/maximize/close, resizable, draggable), not a frameless
+Spotlight/Raycast-style popup. Reason: user testing of the v1.1 frameless
+popup (fixed 600×500, no decorations, always-on-top, transparent) found
+users expected standard window controls, consistent with reference layouts
+(Claude.ai, Cursor, Codex CLI) — those are persistent app surfaces, not
+transient popups. `Alt+Space` still toggles show/hide; closing via the
+native title-bar X hides rather than quits (background capture keeps
+running — docs/16 §7.1; quit is tray-menu only, §10).
+
 | Property | Value |
 |----------|-------|
-| Width | 600px |
-| Max height | 500px |
-| Position | Centered on active monitor |
-| Background | `rgba(15, 15, 20, 0.95)` with backdrop blur |
-| Border radius | 12px |
-| Shadow | `0 25px 50px rgba(0, 0, 0, 0.5)` |
-| Z-order | Always on top |
-| Animation | Fade in 150ms, slide up 10px |
+| Initial size | 900×640px (`minWidth` 480, `minHeight` 360) |
+| Resizable | Yes |
+| Decorations | Native OS title bar (minimize/maximize/close) |
+| Position | Centered on first launch; OS remembers position while running |
+| Background | Solid `--bg-primary` (`#0F0F14`, no transparency) |
+| Border radius | None (edge-to-edge, matches native frame) |
+| Z-order | Normal (not always-on-top) |
+| Animation | Content fade in 150ms, slide up 10px on show |
 
 ### 5.4 Context Indicator
 
@@ -373,8 +383,7 @@ App
 │   │   └── LoadingIndicator
 │   └── OverlayFooter
 │       ├── TimelineToggle
-│       ├── SettingsToggle
-│       └── CloseButton
+│       └── SettingsToggle
 ├── TimelinePanel (overlay sub-view)
 │   ├── DateFilter
 │   ├── TimelineList (virtualized)

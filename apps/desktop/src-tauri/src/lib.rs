@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, WebviewWindow, WindowEvent};
 use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
 use uuid::Uuid;
 
@@ -44,6 +44,22 @@ fn toggle_overlay(app: &AppHandle) -> Result<(), String> {
     } else {
         show_overlay(&win)
     }
+}
+
+/// Native title bar now has a real close (X) button (docs/12 §5.3 pivot —
+/// regular resizable window, not a frameless popup). Clicking it must hide,
+/// not destroy: destroying would drop the preloaded webview (losing SP-07's
+/// instant reopen) and, more importantly, background capture/memory ingest
+/// (docs/16 §7.1) must keep running until the user quits from the tray, not
+/// on every accidental close click.
+fn intercept_close_to_hide(win: &WebviewWindow) {
+    let win_for_close = win.clone();
+    win.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = win_for_close.hide();
+        }
+    });
 }
 
 /// docs/03 §5.2 `get_current_context` — `None` until the first snapshot has
@@ -216,6 +232,7 @@ pub fn run() {
             // Validated in SP-07 (open latency p50 5ms / p95 9ms).
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.hide();
+                intercept_close_to_hide(&win);
             }
 
             #[cfg(desktop)]
