@@ -15,6 +15,7 @@ dist-ssr/
 
 # Model / tool caches (regenerated on demand — see spikes/SP-05, docs/22)
 .fastembed_cache/
+graphify-out/cache/
 
 # Env
 .env
