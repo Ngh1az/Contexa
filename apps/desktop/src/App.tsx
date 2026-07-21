@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { ContextIndicator } from "./components/ContextIndicator";
-import { QuickActionBar } from "./components/QuickActionBar";
-import { ResponsePanel } from "./components/ResponsePanel";
-import { OverlayFooter } from "./components/OverlayFooter";
+import { QuickActionBar, ACTION_LABELS } from "./components/QuickActionBar";
+import { MessageList } from "./components/MessageList";
+import { Sidebar } from "./components/Sidebar";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { initialOverlayState, overlayReducer } from "./lib/overlayState";
+import { useTheme } from "./lib/theme";
 import {
   type ContextSnapshot,
   type RequestActionKind,
@@ -54,6 +56,8 @@ function useCurrentContext() {
 function App() {
   const [state, dispatch] = useReducer(overlayReducer, initialOverlayState);
   const { context, error: contextError } = useCurrentContext();
+  const { preference, setPreference } = useTheme();
+  const [view, setView] = useState<"chat" | "settings">("chat");
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -81,6 +85,7 @@ function App() {
     const unlisten = onOverlayFocus(() => {
       dispatch({ type: "reset" });
       setQuery("");
+      setView("chat");
       inputRef.current?.focus();
     });
     return () => {
@@ -94,12 +99,13 @@ function App() {
       dispatch({ type: "rejected", reason: res.reason ?? "Request rejected" });
       return;
     }
-    dispatch({ type: "submit", requestId: res.request_id });
+    dispatch({ type: "submit", requestId: res.request_id, query: actionQuery ?? ACTION_LABELS[action] ?? action });
   }, []);
 
   const onSubmitQuery = () => {
     const trimmed = query.trim();
     if (!trimmed || state.phase === "processing") return;
+    setQuery("");
     void submit("chat", trimmed);
   };
 
@@ -111,8 +117,18 @@ function App() {
     await hideOverlay();
   }, [state.phase, state.requestId]);
 
+  const onNewConversation = useCallback(async () => {
+    if (state.phase === "processing" && state.requestId) {
+      await cancelRequest(state.requestId).catch(() => undefined);
+    }
+    dispatch({ type: "reset" });
+    setQuery("");
+    setView("chat");
+    inputRef.current?.focus();
+  }, [state.phase, state.requestId]);
+
   return (
-    <motion.main
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
@@ -122,37 +138,47 @@ function App() {
           void onEscape();
         }
       }}
-      className="flex h-full w-full flex-col overflow-hidden bg-bg-primary text-text-primary"
+      className="flex h-full w-full overflow-hidden bg-bg-primary text-text-primary"
     >
-      <header className="px-4 pb-2 pt-4">
-        <textarea
-          ref={inputRef}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSubmitQuery();
-            }
-          }}
-          placeholder="Ask anything about your screen…"
-          rows={1}
-          className="w-full resize-none bg-transparent text-sm text-text-primary placeholder:text-text-secondary focus:outline-none"
-        />
-      </header>
+      <Sidebar
+        onNewConversation={() => void onNewConversation()}
+        onOpenSettings={() => setView((v) => (v === "settings" ? "chat" : "settings"))}
+        settingsActive={view === "settings"}
+        disabled={state.phase === "processing"}
+      />
 
-      <QuickActionBar disabled={state.phase === "processing"} onAction={(action) => void submit(action)} />
+      {view === "settings" ? (
+        <SettingsPanel preference={preference} onChange={setPreference} onClose={() => setView("chat")} />
+      ) : (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="border-b border-border px-4 py-1.5">
+            <ContextIndicator context={context} error={contextError} />
+          </div>
 
-      <div className="border-t border-border px-4 py-1.5">
-        <ContextIndicator context={context} error={contextError} />
-      </div>
+          <MessageList phase={state.phase} messages={state.messages} error={state.error} />
 
-      <div className="flex-1 overflow-y-auto">
-        <ResponsePanel phase={state.phase} response={state.response} error={state.error} />
-      </div>
+          <QuickActionBar disabled={state.phase === "processing"} onAction={(action) => void submit(action)} />
 
-      <OverlayFooter />
-    </motion.main>
+          <div className="border-t border-border px-4 py-3">
+            <textarea
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSubmitQuery();
+                }
+              }}
+              placeholder="Ask anything about your screen…"
+              rows={1}
+              className="w-full resize-none rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary
+                placeholder:text-text-secondary focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            />
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 }
 
