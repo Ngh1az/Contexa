@@ -30,3 +30,6 @@ Thumbs.db
 # Local reference clones — not part of the shipped repo, contain nested .git
 # dirs of their own (docs/26_Reference_Repos.md)
 reference-repos/
+
+# Brainstorming visual companion mockups (transient design scratch)
+.superpowers/
