@@ -37,8 +37,11 @@
   --color-bg-tertiary: #e8e6dc;
   --color-text-primary: #1f1e1d;
   --color-text-secondary: #6b6a66;
-  --color-accent: #c15f3c;
-  --color-accent-hover: #ad5434;
+  /* #c15f3c only hit 4.01:1 on --color-bg-primary (fails WCAG AA 4.5:1 for
+     text, e.g. markdown links in MessageList) — darkened to pass at 5.25:1,
+     same hue direction as the spec. */
+  --color-accent: #a84e2f;
+  --color-accent-hover: #8f3f24;
   --color-success: #00966f;
   --color-warning: #b8860b;
   --color-error: #c44f36;
