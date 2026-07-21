@@ -11,21 +11,38 @@
    is closest to the overlay's own palette without a custom stylesheet. */
 @import "highlight.js/styles/github-dark.css";
 
-/* docs/12 §12.1 — Dark Theme design tokens */
+/* docs/12 §12.1 — Dark Theme design tokens (default) */
 @theme {
-  --color-bg-primary: #0f0f14;
-  --color-bg-secondary: #1a1a24;
-  --color-text-primary: #e8e8ed;
-  --color-text-secondary: #9898a4;
-  --color-accent: #6c5ce7;
-  --color-accent-hover: #7d6ff0;
+  --color-bg-primary: #262624;
+  --color-bg-secondary: #1e1e1c;
+  --color-bg-tertiary: #3a3a37;
+  --color-text-primary: #f0eee6;
+  --color-text-secondary: #8f8d86;
+  --color-accent: #d97757;
+  --color-accent-hover: #e08966;
   --color-success: #00b894;
   --color-warning: #fdcb6e;
   --color-error: #e17055;
-  --color-border: #2a2a36;
+  --color-border: #3a3a37;
 
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* docs/12 §12.1 — Light Theme overrides, applied via [data-theme="light"]
+   on <html> (src/lib/theme.ts sets this attribute). */
+:root[data-theme="light"] {
+  --color-bg-primary: #faf9f5;
+  --color-bg-secondary: #f4f3ee;
+  --color-bg-tertiary: #e8e6dc;
+  --color-text-primary: #1f1e1d;
+  --color-text-secondary: #6b6a66;
+  --color-accent: #c15f3c;
+  --color-accent-hover: #ad5434;
+  --color-success: #00966f;
+  --color-warning: #b8860b;
+  --color-error: #c44f36;
+  --color-border: #e5e3da;
 }
 
 html,
