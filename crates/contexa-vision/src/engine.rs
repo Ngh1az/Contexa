@@ -19,7 +19,7 @@ use crate::differencer::FrameDifferencer;
 use crate::exclusion::{ExclusionFilter, ExclusionRule};
 use crate::hash::ahash;
 use crate::ocr::OcrEngine;
-use crate::scheduler::AdaptiveScheduler;
+use crate::scheduler::{AdaptiveScheduler, CaptureState};
 use crate::types::{Frame, OcrResult, Region, UiaResult, VisionResult, WindowInfo};
 use crate::uia::UiaExtractor;
 use crate::window_monitor::WindowMonitor;
@@ -283,6 +283,16 @@ fn capture_loop(running: &AtomicBool, exclusion: &ExclusionFilter, tx: &Sender<V
     unsafe { CoUninitialize() };
 }
 
+/// Some target apps (VS Code/Electron) flash their own accessibility focus
+/// border on every UIA read of a Document/Edit control. Deferring the walk
+/// until typing pauses (state != `Interactive`) turns that into at most one
+/// flash per pause instead of one per keystroke — the settled document is
+/// what context needs, not every intermediate keystroke.
+#[must_use]
+fn should_walk_uia(state: CaptureState) -> bool {
+    state != CaptureState::Interactive
+}
+
 #[allow(clippy::too_many_arguments)]
 fn run_capture_tick(
     window: &WindowInfo,
@@ -302,7 +312,11 @@ fn run_capture_tick(
         return;
     }
     // UIA-first, no OCR call from the loop (ADR-0002; OCR is stubbed — see ocr.rs).
-    let uia_result = uia.and_then(|u| u.extract_text(window.hwnd).ok());
+    let uia_result = if should_walk_uia(scheduler.state()) {
+        uia.and_then(|u| u.extract_text(window.hwnd).ok())
+    } else {
+        None
+    };
     let result = build_result(window, &frame, uia_result);
     send_dropping_oldest(tx, result);
 }
@@ -316,5 +330,21 @@ fn run_capture_tick(
 fn send_dropping_oldest(tx: &Sender<VisionResult>, result: VisionResult) {
     match tx.try_send(result) {
         Ok(()) | Err(TrySendError::Full(_) | TrySendError::Disconnected(_)) => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skips_uia_walk_while_typing_rapidly() {
+        assert!(!should_walk_uia(CaptureState::Interactive));
+    }
+
+    #[test]
+    fn walks_uia_once_settled() {
+        assert!(should_walk_uia(CaptureState::Active));
+        assert!(should_walk_uia(CaptureState::Idle));
     }
 }
