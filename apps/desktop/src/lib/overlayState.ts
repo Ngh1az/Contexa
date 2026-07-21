@@ -3,23 +3,29 @@
 
 export type OverlayPhase = "idle" | "processing" | "streaming";
 
+export interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface OverlayState {
   phase: OverlayPhase;
   requestId: string | null;
-  response: string;
+  messages: Message[];
   error: string | null;
 }
 
 export const initialOverlayState: OverlayState = {
   phase: "idle",
   requestId: null,
-  response: "",
+  messages: [],
   error: null,
 };
 
 export type OverlayAction =
   | { type: "reset" }
-  | { type: "submit"; requestId: string }
+  | { type: "submit"; requestId: string; query: string }
   | { type: "rejected"; reason: string }
   | { type: "chunk"; requestId: string; content: string }
   | { type: "complete"; requestId: string }
@@ -31,14 +37,29 @@ export function overlayReducer(state: OverlayState, action: OverlayAction): Over
     case "reset":
       return initialOverlayState;
     case "submit":
-      return { phase: "processing", requestId: action.requestId, response: "", error: null };
+      return {
+        phase: "processing",
+        requestId: action.requestId,
+        error: null,
+        messages: [
+          ...state.messages,
+          { id: `${action.requestId}-user`, role: "user", content: action.query },
+          { id: action.requestId, role: "assistant", content: "" },
+        ],
+      };
     case "rejected":
-      return { ...initialOverlayState, error: action.reason };
+      return { ...state, phase: "idle", error: action.reason };
     case "chunk":
       // ai-chunk events are broadcast per-window, not scoped to a request —
       // ignore anything not addressed to the in-flight request (stale/cancelled).
       if (action.requestId !== state.requestId) return state;
-      return { ...state, phase: "streaming", response: state.response + action.content };
+      return {
+        ...state,
+        phase: "streaming",
+        messages: state.messages.map((m) =>
+          m.id === action.requestId ? { ...m, content: m.content + action.content } : m,
+        ),
+      };
     case "complete":
       if (action.requestId !== state.requestId) return state;
       return { ...state, phase: "idle" };
