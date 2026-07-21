@@ -1,21 +1,21 @@
 # UI / UX Design
 
 **Project:** Contexa — AI Context Platform  
-**Version:** 1.2  
+**Version:** 1.4  
 **Status:** Reviewed  
-**Last Updated:** 2026-07-18
+**Last Updated:** 2026-07-21
 
 ---
 
 ## 1. Overview
 
-The Contexa user interface consists of three primary surfaces: the **Overlay** (activated by `Alt + Space`), the **Settings** window, and the **System Tray**. The design prioritizes speed, minimal disruption, and context-aware interactions.
+The Contexa user interface consists of three primary surfaces: the **Overlay** (opened from the **System Tray**), the **Settings** window, and the System Tray itself. The design prioritizes speed, minimal disruption, and context-aware interactions.
 
 ---
 
 ## 2. Goals
 
-1. Open overlay within 200ms of hotkey press
+1. Open overlay within 200ms of tray-icon click
 2. Enable one-keystroke access to common AI actions
 3. Display AI responses with streaming for perceived instant feedback
 4. Provide timeline and settings without leaving the overlay
@@ -28,7 +28,7 @@ The Contexa user interface consists of three primary surfaces: the **Overlay** (
 | Surface | Responsibility |
 |---------|----------------|
 | Overlay | Primary AI interaction; chat, quick actions, streaming responses |
-| Settings | Configuration for LLM, capture, privacy, MCP, hotkeys |
+| Settings | Configuration for LLM, capture, privacy, MCP |
 | System Tray | Status indicator, quick access, quit |
 | Timeline View | Browse chronological work history |
 | Onboarding | First-run setup wizard |
@@ -68,30 +68,43 @@ flowchart TB
 
 ### 5.1 Layout
 
+**v1.4 pivot — Claude.ai-style rail + bottom input:** the footer nav and
+top-anchored input from v1.3 were replaced with a left icon-rail (New /
+Timeline / Settings) and a bottom-pinned input, to match the reference
+layout family (§5.3) more closely and to support multi-turn conversation
+within one overlay session (a single query/response no longer clears the
+prior turn — see §7).
+
 ```
-┌─────────────────────────────────────────────────┐
-│  🔍  Ask anything about your screen...          │ ← Input bar
-├─────────────────────────────────────────────────┤
-│  [Explain] [Summarize] [Translate] [Search]       │ ← Quick actions
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  📄 VS Code — main.rs                    ← Context indicator
-│  ─────────────────────────────────────────────│
-│                                                 │
-│  AI Response area with streaming text...        │ ← Response panel
-│                                                 │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│  📋 Timeline    ⚙️ Settings    ✕ Close           │ ← Footer actions
-└─────────────────────────────────────────────────┘
+┌────┬──────────────────────────────────────────┐
+│ +  │  📄 VS Code — main.rs        (context)    │
+│ 🕐 │──────────────────────────────────────────│
+│ ⚙  │  (message list, scrollable)               │
+│    │   ┌───────────────────────────┐           │
+│    │   │              user bubble ►│           │
+│    │   └───────────────────────────┘           │
+│    │   assistant text, no bubble               │
+│    │                                            │
+│    │──────────────────────────────────────────│
+│    │  [Explain] [Summarize] [Translate] [🔍]    │
+│    │  ┌──────────────────────────────────────┐ │
+│    │  │ Ask anything about your screen…       │ │
+│    │  └──────────────────────────────────────┘ │
+└────┴──────────────────────────────────────────┘
 ```
+
+Rail is 48px, icon-only, three items: **New** (accent-filled `+`, starts a
+fresh conversation), **Timeline** (disabled — unimplemented), **Settings**
+(opens the panel in §9, in-overlay view swap, not a separate window). User
+messages render as a right-aligned bubble; assistant responses stay plain
+text, no bubble (unchanged minimal direction from v1.3).
 
 ### 5.2 Overlay States
 
 ```mermaid
 stateDiagram-v2
     [*] --> Hidden
-    Hidden --> Input: Alt+Space
+    Hidden --> Input: Tray click
     Input --> Processing: Submit / Quick Action
     Processing --> Streaming: First token received
     Streaming --> Input: Response complete
@@ -112,9 +125,19 @@ Spotlight/Raycast-style popup. Reason: user testing of the v1.1 frameless
 popup (fixed 600×500, no decorations, always-on-top, transparent) found
 users expected standard window controls, consistent with reference layouts
 (Claude.ai, Cursor, Codex CLI) — those are persistent app surfaces, not
-transient popups. `Alt+Space` still toggles show/hide; closing via the
-native title-bar X hides rather than quits (background capture keeps
-running — docs/16 §7.1; quit is tray-menu only, §10).
+transient popups. Closing via the native title-bar X hides rather than
+quits (background capture keeps running — docs/16 §7.1; quit is
+tray-menu only, §10).
+
+**v1.3 pivot:** the global hotkey (`Alt+Space`) was removed in favor of the
+System Tray as the sole way to open the overlay — left-click the tray icon,
+or use "Open Overlay" in its menu. Decision: the hotkey added a
+system-wide input hook and a rebind-conflict surface for a product still
+finding its interaction model; the tray is one click, needs no
+registration, and never collides with another app's shortcut. Revisit if
+user feedback shows tray-click latency (moving to the icon) is a real
+friction point — the FR (§1 FR-DA-04 in docs/01) can be re-added as an
+additional trigger, not a replacement.
 
 | Property | Value |
 |----------|-------|
@@ -122,8 +145,8 @@ running — docs/16 §7.1; quit is tray-menu only, §10).
 | Resizable | Yes |
 | Decorations | Native OS title bar (minimize/maximize/close) |
 | Position | Centered on first launch; OS remembers position while running |
-| Background | Solid `--bg-primary` (`#0F0F14`, no transparency) |
-| Border radius | None (edge-to-edge, matches native frame) |
+| Background | Solid `--bg-primary` (theme-dependent, no transparency — see §12.1) |
+| Border radius | Outer frame: none (edge-to-edge, matches native frame). Inner elements (bubbles, input, buttons) use rounded corners — see §12.1/component specs |
 | Z-order | Normal (not always-on-top) |
 | Animation | Content fade in 150ms, slide up 10px on show |
 
@@ -224,31 +247,41 @@ sequenceDiagram
 
 ## 9. Settings
 
+**v1.4 status:** only **General → Theme** is implemented, as an in-overlay
+view swap opened from the rail (§5.1), not a separate window. It is the
+sole control shipped so far — `Light / Dark / System`, persisted to
+`localStorage`. All other sections below remain unbuilt (design only).
+
 ### 9.1 Sections
 
-| Section | Settings |
-|---------|----------|
-| **General** | Hotkey, auto-start, language |
-| **AI Provider** | Provider, model, API key, temperature, max tokens |
-| **Capture** | Enable/disable, excluded apps, excluded URLs |
-| **Memory** | Retention period, embedding model, clear data |
-| **Search** | Enable/disable, provider, API key |
-| **Privacy** | Send context to cloud, data export, delete all |
-| **MCP** | Server status, generate/revoke tokens, connected clients |
-| **About** | Version, license, documentation links |
+| Section | Settings | Status |
+|---------|----------|--------|
+| **General** | Auto-start, language, **Theme** ✅ | Theme implemented; rest unbuilt |
+| **AI Provider** | Provider, model, API key, temperature, max tokens | Unbuilt |
+| **Capture** | Enable/disable, excluded apps, excluded URLs | Unbuilt |
+| **Memory** | Retention period, embedding model, clear data | Unbuilt |
+| **Search** | Enable/disable, provider, API key | Unbuilt |
+| **Privacy** | Send context to cloud, data export, delete all | Unbuilt |
+| **MCP** | Server status, generate/revoke tokens, connected clients | Unbuilt |
+| **About** | Version, license, documentation links | Unbuilt |
 
 ### 9.2 Settings Layout
 
+Target layout (once the remaining sections are built) is a sidebar of
+section names; today's shipped panel has no sidebar of its own — it's a
+single "General" block with one row (Theme), reachable via the rail's
+gear icon, with a "Back" action to return to chat.
+
 ```
 ┌──────────┬──────────────────────────────────────┐
-│ General  │  Overlay Hotkey                      │
-│ AI       │  ┌─────────────────┐                 │
-│ Capture  │  │ Alt + Space     │  [Change]       │
-│ Memory   │  └─────────────────┘                 │
+│ General  │  ☐ Start Contexa on login            │
+│ AI       │                                      │
+│ Capture  │  Language: [English ▾]               │
+│ Memory   │  Theme: [System ▾]                   │
 │ Search   │                                      │
-│ Privacy  │  ☐ Start Contexa on login            │
+│ Privacy  │                                      │
 │ MCP      │                                      │
-│ About    │  Language: [English ▾]               │
+│ About    │                                      │
 │          │                                      │
 └──────────┴──────────────────────────────────────┘
 ```
@@ -264,7 +297,7 @@ sequenceDiagram
 | Error | Red dot | "Contexa — Error" |
 
 **Tray menu:**
-- Open Overlay (`Alt+Space`)
+- Open Overlay (also: left-click the icon)
 - Pause/Resume Capture
 - Settings
 - Timeline
@@ -278,7 +311,7 @@ sequenceDiagram
 flowchart LR
     A[Welcome] --> B[Privacy Consent]
     B --> C[Configure AI Provider]
-    C --> D[Set Hotkey]
+    C --> D[Show Tray Icon]
     D --> E[Capture Preferences]
     E --> F[Ready]
 ```
@@ -288,28 +321,38 @@ flowchart LR
 | Welcome | "Contexa gives AI real-time awareness of your desktop" |
 | Privacy | Explain what is captured; opt-in for cloud LLM and search |
 | AI Provider | Select provider; enter API key or configure Ollama |
-| Hotkey | Confirm `Alt+Space` or customize |
+| Show Tray Icon | Point out the Contexa tray icon; explain left-click opens the overlay |
 | Capture | Default exclusions; option to add apps |
-| Ready | "Press Alt+Space anywhere to try it" |
+| Ready | "Click the tray icon anytime to try it" |
 
 ---
 
 ## 12. Design System
 
-### 12.1 Colors (Dark Theme)
+### 12.1 Colors (Dark + Light, Claude.ai-style)
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--bg-primary` | `#0F0F14` | Overlay background |
-| `--bg-secondary` | `#1A1A24` | Cards, input fields |
-| `--text-primary` | `#E8E8ED` | Body text |
-| `--text-secondary` | `#9898A4` | Labels, hints |
-| `--accent` | `#6C5CE7` | Buttons, links, focus |
-| `--accent-hover` | `#7D6FF0` | Hover states |
-| `--success` | `#00B894` | Active status |
-| `--warning` | `#FDCB6E` | Paused status |
-| `--error` | `#E17055` | Error states |
-| `--border` | `#2A2A36` | Borders, dividers |
+**v1.4 pivot:** replaced the single purple-accent dark palette with a
+warm terracotta-accent palette matched to the reference layout family
+(§5.3), and added a light theme (§9, toggled via Settings → General →
+Theme). Tokens switch via a `[data-theme="light"]` attribute on `<html>`;
+dark is the default when no attribute is set. Light-theme `--accent` is
+darkened from an initial `#C15F3C` to `#A84E2F` — the lighter value only
+hit 4.01:1 contrast against `--bg-primary` (fails WCAG AA 4.5:1 for text
+uses like markdown links); `#A84E2F` hits 5.25:1.
+
+| Token | Dark | Light | Usage |
+|-------|------|-------|-------|
+| `--bg-primary` | `#262624` | `#FAF9F5` | Overlay background |
+| `--bg-secondary` | `#1E1E1C` | `#F4F3EE` | Rail, cards, input fields |
+| `--bg-tertiary` | `#3A3A37` | `#E8E6DC` | User message bubble |
+| `--text-primary` | `#F0EEE6` | `#1F1E1D` | Body text |
+| `--text-secondary` | `#8F8D86` | `#6B6A66` | Labels, hints |
+| `--accent` | `#D97757` | `#A84E2F` | Buttons, links, focus |
+| `--accent-hover` | `#E08966` | `#8F3F24` | Hover states |
+| `--success` | `#00B894` | `#00966F` | Active status |
+| `--warning` | `#FDCB6E` | `#B8860B` | Paused status |
+| `--error` | `#E17055` | `#C44F36` | Error states |
+| `--border` | `#3A3A37` | `#E5E3DA` | Borders, dividers |
 
 ### 12.2 Typography
 
@@ -368,27 +411,30 @@ Base unit: 4px. Common values: 4, 8, 12, 16, 24, 32.
 ```
 App
 ├── SystemTray (always running)
-├── OverlayWindow (on hotkey)
-│   ├── OverlayHeader
-│   │   ├── SearchInput
-│   │   └── ContextBadge
+├── OverlayWindow (from tray)
+│   ├── Sidebar (icon rail — v1.4, replaces OverlayFooter)
+│   │   ├── NewConversationButton
+│   │   ├── TimelineButton (disabled — unimplemented)
+│   │   └── SettingsButton
+│   ├── ContextIndicator
+│   ├── MessageList (v1.4, replaces ResponsePanel — multi-turn)
+│   │   ├── MessageBubble (role: user | assistant)
+│   │   ├── CopyButton (per assistant message)
+│   │   └── LoadingIndicator
 │   ├── QuickActionBar
 │   │   ├── ExplainButton
 │   │   ├── SummarizeButton
-│   │   ├── TranslateButton
+│   │   ├── TranslateButton (disabled — needs language picker)
 │   │   └── SearchButton
-│   ├── ResponsePanel
-│   │   ├── StreamingText (markdown)
-│   │   ├── SourceCitations
-│   │   └── LoadingIndicator
-│   └── OverlayFooter
-│       ├── TimelineToggle
-│       └── SettingsToggle
-├── TimelinePanel (overlay sub-view)
+│   └── InputBar (bottom-pinned — v1.4, was top-anchored)
+├── SettingsView (overlay sub-view — v1.4, in-overlay swap not a window)
+│   └── SettingsPanel
+│       └── ThemeSelect (System | Light | Dark) — only implemented control
+├── TimelinePanel (overlay sub-view, unimplemented)
 │   ├── DateFilter
 │   ├── TimelineList (virtualized)
 │   └── EventDetail
-├── SettingsWindow (separate window)
+├── SettingsWindow (future — full multi-section settings, not yet built)
 │   ├── SettingsSidebar
 │   └── SettingsContent (per section)
 └── OnboardingWizard (first-run modal)
@@ -398,7 +444,7 @@ App
 
 | User Action | Key/Input | System Response | Latency Target |
 |-------------|-----------|-----------------|----------------|
-| Open overlay | `Alt+Space` | Show overlay, focus input, load context badge | < 200 ms |
+| Open overlay | Tray left-click | Show overlay, focus input, load context badge | < 200 ms |
 | Submit query | `Enter` | Send to orchestrator, show loading, stream response | < 50 ms accept |
 | Quick explain | `E` or click | Trigger explain action on current context | < 50 ms accept |
 | Quick summarize | `S` or click | Trigger summarize action | < 50 ms accept |
@@ -434,8 +480,8 @@ App
 
 | Animation | Duration | Easing | Trigger |
 |-----------|----------|--------|---------|
-| Overlay fade in | 150 ms | ease-out | Hotkey press |
-| Overlay slide up | 150 ms | ease-out | Hotkey press (10px translateY) |
+| Overlay fade in | 150 ms | ease-out | Tray click |
+| Overlay slide up | 150 ms | ease-out | Tray click (10px translateY) |
 | Overlay fade out | 100 ms | ease-in | Escape |
 | Token stream | — | — | Append text, no per-token animation |
 | Loading pulse | 1000 ms | ease-in-out | Waiting for first token |
