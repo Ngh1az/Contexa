@@ -11,6 +11,12 @@ const ACTIONS: { action: RequestActionKind; label: string; shortcut: string; ena
   { action: "search", label: "Search", shortcut: "/", enabled: true },
 ];
 
+// Reused by App.tsx to label the user-bubble for quick actions, which have
+// no typed query — single source of truth, no separate label list to drift.
+export const ACTION_LABELS: Partial<Record<RequestActionKind, string>> = Object.fromEntries(
+  ACTIONS.map(({ action, label }) => [action, label]),
+);
+
 export function QuickActionBar({
   onAction,
   disabled,
