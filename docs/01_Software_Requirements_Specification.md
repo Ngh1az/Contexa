@@ -21,7 +21,7 @@ Provide a complete, testable requirements baseline for engineering, QA, and prod
 |----------|--------------|
 | Windows desktop agent (Tauri + Rust) | macOS / Linux (Phase 2+) |
 | Vision, Context, Memory, AI engines | Building a proprietary LLM |
-| Overlay UI with hotkey activation | Full chatbot replacement |
+| Overlay UI with tray activation | Full chatbot replacement |
 | MCP client and server runtime | Enterprise SSO (Phase 2+) |
 | SQLite + sqlite-vec storage | Cloud-hosted user data (default) |
 | Web marketing/docs site (Next.js) | Mobile applications |
@@ -83,8 +83,7 @@ Connects multiple AI tools via MCP. Needs reliable context APIs and provider fle
 | FR-DA-01 | System SHALL run as a background Tauri application with system tray presence | Must |
 | FR-DA-02 | System SHALL start automatically on user login (configurable) | Should |
 | FR-DA-03 | System SHALL support Windows 10 (build 19041+) and Windows 11 | Must |
-| FR-DA-04 | System SHALL register global hotkey `Alt + Space` to open overlay | Must |
-| FR-DA-05 | Hotkey SHALL be rebindable in settings | Should |
+| FR-DA-04 | System tray icon SHALL open the overlay on left-click, with an "Open Overlay" menu item as a fallback | Must |
 | FR-DA-06 | System SHALL minimize to tray on close; not terminate unless user quits | Must |
 
 ### 4.2 Vision Engine
@@ -185,7 +184,7 @@ Connects multiple AI tools via MCP. Needs reliable context APIs and provider fle
 | FR-UI-04 | Overlay SHALL display AI response with streaming support | Must |
 | FR-UI-05 | Overlay SHALL provide access to Timeline view | Must |
 | FR-UI-06 | Overlay SHALL provide Settings panel | Must |
-| FR-UI-07 | Overlay SHALL be dismissible via `Escape` or hotkey toggle | Must |
+| FR-UI-07 | Overlay SHALL be dismissible via `Escape` or tray-icon toggle | Must |
 | FR-UI-08 | Overlay SHALL not steal focus permanently from active application | Should |
 
 ### 4.10 Settings & Configuration
@@ -296,7 +295,7 @@ sequenceDiagram
     participant Memory
     participant LLM
 
-    User->>Overlay: Alt+Space → "Explain this"
+    User->>Overlay: Tray click → "Explain this"
     Overlay->>Orchestrator: Request(action=explain)
     Orchestrator->>Context: get_current_context()
     Context-->>Orchestrator: ContextSnapshot
@@ -389,7 +388,7 @@ See [04_Database_Design.md](./04_Database_Design.md) for schema details.
 
 | Feature | Acceptance Test |
 |---------|-----------------|
-| Hotkey overlay | Press `Alt+Space`; overlay appears < 200ms |
+| Tray overlay | Left-click tray icon; overlay appears < 200ms |
 | Context capture | Switch to Chrome; context shows URL within 500ms |
 | Explain action | Select code in VS Code; "Explain this" returns relevant explanation |
 | Timeline | "What did I work on today?" returns accurate session summary |

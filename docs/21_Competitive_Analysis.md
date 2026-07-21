@@ -31,7 +31,7 @@ Contexa operates in the intersection of three categories:
 
 | Product | Type | Local-First | MCP | Timeline | Semantic Search | AI Agnostic | Overlay | Open Source |
 |---------|------|-------------|-----|----------|-----------------|-------------|---------|-------------|
-| **Contexa** | Context Platform | ✅ | ✅ Native | ✅ | ✅ sqlite-vec | ✅ | ✅ Alt+Space | Planned (core) |
+| **Contexa** | Context Platform | ✅ | ✅ Native | ✅ | ✅ sqlite-vec | ✅ | ✅ Tray | Planned (core) |
 | Microsoft Recall | OS Feature | ✅ | ❌ | ✅ | ❌ | ❌ (Copilot only) | ❌ | ❌ |
 | Rewind | Recorder + Search | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Screenpipe | Screen Capture API | ✅ | Partial | ✅ | ✅ | ✅ | ❌ | ✅ |

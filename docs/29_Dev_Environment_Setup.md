@@ -44,7 +44,7 @@ pnpm install
 pnpm -C apps/desktop tauri dev
 ```
 
-Preloaded overlay window; press `Alt+Space` to toggle visibility (validated in `spikes/SP-07-tauri-overlay`, open latency p50 5ms / p95 9ms — see `benchmarks/BASELINE.md`).
+Preloaded overlay window; left-click the tray icon to toggle visibility (open-latency numbers from `spikes/SP-07-tauri-overlay`'s hotkey prototype still hold — p50 5ms / p95 9ms — see `benchmarks/BASELINE.md`).
 
 ---
 

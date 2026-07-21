@@ -194,7 +194,7 @@ flowchart TB
 
 | ID | Test Case | Steps | Expected |
 |----|-----------|-------|----------|
-| E2E-01 | Overlay hotkey open | Press Alt+Space | Overlay visible < 200ms |
+| E2E-01 | Overlay tray open | Left-click tray icon | Overlay visible < 200ms |
 | E2E-02 | Explain code in VS Code | Open file → select code → Explain | Relevant explanation streamed |
 | E2E-03 | Timeline recall | Work in 3 apps → "What did I do today?" | Accurate summary |
 | E2E-04 | Translate selection | Select text → Translate to Vietnamese | Translation displayed |
@@ -211,7 +211,7 @@ flowchart TB
 
 | ID | Metric | Target | Method |
 |----|--------|--------|--------|
-| PT-01 | Overlay open latency | < 200 ms | Measure hotkey to visible |
+| PT-01 | Overlay open latency | < 200 ms | Measure tray click to visible |
 | PT-02 | Context update on app switch | < 500 ms | Switch app; measure context update event |
 | PT-03 | Background CPU (idle) | < 1% | 5-min idle monitoring |
 | PT-04 | Background CPU (active) | < 5% | 5-min active use monitoring |
@@ -308,7 +308,7 @@ All Must-priority SRS requirements must pass corresponding test cases before rel
 
 | SRS ID | Requirement | Test ID(s) | Priority |
 |--------|-------------|------------|----------|
-| FR-DA-04 | Alt+Space overlay | E2E-01, PT-01 | Must |
+| FR-DA-04 | Tray overlay | E2E-01, PT-01 | Must |
 | FR-VE-03 | OCR only when needed | UT-VE-04, UT-AO-01, SP-03 | Must |
 | FR-CE-01 | Track active window | IT-01, E2E-02 | Must |
 | FR-ME-06 | Semantic search | UT-ME-07, IT-08, SP-04 | Must |

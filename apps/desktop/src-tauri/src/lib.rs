@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow, WindowEvent};
-use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Emitter, Manager, WebviewWindow, WindowEvent,
+};
 use uuid::Uuid;
 
 use contexa_context::{ContexaContextEngine, ContextEngine};
@@ -44,6 +47,38 @@ fn toggle_overlay(app: &AppHandle) -> Result<(), String> {
     } else {
         show_overlay(&win)
     }
+}
+
+/// No global hotkey (docs/12 §5.3, §10 pivot): overlay opens only from the
+/// tray — left-click the icon or "Open Overlay" in its menu. "Quit" here is
+/// the only way to exit; the title-bar close button still just hides
+/// (`intercept_close_to_hide`).
+#[allow(clippy::expect_used)]
+fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let open_item = MenuItem::with_id(app, "open_overlay", "Open Overlay", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let tray_menu = Menu::with_items(app, &[&open_item, &quit_item])?;
+
+    TrayIconBuilder::new()
+        .icon(app.default_window_icon().expect("bundle icon configured in tauri.conf.json").clone())
+        .tooltip("Contexa")
+        .menu(&tray_menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "open_overlay" => {
+                let _ = toggle_overlay(app);
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                let _ = toggle_overlay(tray.app_handle());
+            }
+        })
+        .build(app)?;
+
+    Ok(())
 }
 
 /// Native title bar now has a real close (X) button (docs/12 §5.3 pivot —
@@ -228,29 +263,14 @@ pub fn run() {
             cancel_request
         ])
         .setup(|app| {
-            // Preload: window exists from startup; stay hidden until hotkey.
-            // Validated in SP-07 (open latency p50 5ms / p95 9ms).
+            // Preload: window exists from startup; stay hidden until opened
+            // from the tray. Validated in SP-07 (open latency p50 5ms / p95 9ms).
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.hide();
                 intercept_close_to_hide(&win);
             }
 
-            #[cfg(desktop)]
-            {
-                app.handle().plugin(
-                    tauri_plugin_global_shortcut::Builder::new()
-                        .with_shortcuts(["alt+space"])?
-                        .with_handler(|app, shortcut, event| {
-                            if event.state != ShortcutState::Pressed {
-                                return;
-                            }
-                            if shortcut.matches(Modifiers::ALT, Code::Space) {
-                                let _ = toggle_overlay(app);
-                            }
-                        })
-                        .build(),
-                )?;
-            }
+            build_tray(app.handle())?;
 
             // Vision Engine's capture thread feeds `rx`; nothing consumed it
             // until now (docs/14 §5.1, §5.2 — M1 wiring).

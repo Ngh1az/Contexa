@@ -212,9 +212,6 @@ interface Settings {
     enabled: boolean;
     provider: string;
   };
-  hotkey: {
-    overlay: string; // e.g., "Alt+Space"
-  };
   privacy: {
     send_context_to_cloud: boolean;
   };

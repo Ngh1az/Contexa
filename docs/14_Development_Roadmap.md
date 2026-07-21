@@ -182,7 +182,7 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 | Task                                          | Priority | Duration |
 | --------------------------------------------- | -------- | -------- |
 | Overlay window (Tauri)                        | Must     | 3d       |
-| Global hotkey (Alt+Space)                     | Must     | 2d       |
+| System tray (open overlay, quit)              | Must     | 2d       |
 | Chat input + streaming response               | Must     | 5d       |
 | Quick actions (Explain, Summarize, Translate) | Must     | 3d       |
 | Context indicator                             | Must     | 2d       |
@@ -221,7 +221,7 @@ Validate risky assumptions before full engine implementation. See [22_Technical_
 
 ### Milestone: M3 — Usable Product
 
-**Criteria:** Complete user flow from hotkey to AI response with settings and timeline.
+**Criteria:** Complete user flow from tray to AI response with settings and timeline.
 
 ---
 

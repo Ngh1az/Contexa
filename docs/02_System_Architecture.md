@@ -29,7 +29,7 @@ Contexa is structured as a **Tauri desktop application** with a **Rust core** ha
 
 | Layer | Responsibility |
 |-------|----------------|
-| **Desktop Shell (Tauri)** | Window management, system tray, hotkey registration, IPC bridge |
+| **Desktop Shell (Tauri)** | Window management, system tray, IPC bridge |
 | **Vision Engine** | Screen capture, UIA, selective OCR, frame differencing |
 | **Context Engine** | Context snapshot assembly, caching, enrichment |
 | **Memory Engine** | Persistence, timeline, embeddings, semantic search |
@@ -47,7 +47,6 @@ Contexa is structured as a **Tauri desktop application** with a **Rust core** ha
 flowchart TB
     subgraph Desktop["Desktop Layer (Tauri)"]
         Tray[System Tray]
-        Hotkey[Global Hotkey]
         OverlayUI[Overlay UI - React]
     end
 
@@ -73,7 +72,7 @@ flowchart TB
         MCPClients[MCP Clients]
     end
 
-    Hotkey --> OverlayUI
+    Tray --> OverlayUI
     OverlayUI <-->|IPC| AO
   VE -->|FrameEvent| VB
     VB --> CE
